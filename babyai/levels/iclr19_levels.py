@@ -5,7 +5,7 @@ Levels described in the ICLR 2019 submission.
 import gym
 from .verifier import *
 from .levelgen import *
-
+from gym_minigrid.minigrid import *
 
 class Level_GoToRedBallGrey(RoomGridLevel):
     """
@@ -43,11 +43,11 @@ class Level_GoToRedBall(RoomGridLevel):
     This level has distractors but doesn't make use of language.
     """
 
-    def __init__(self, room_size=8, num_dists=7, seed=None):
+    def __init__(self, room_size=8, num_dists=7, num_rows=1, num_cols=1, seed=None):
         self.num_dists = num_dists
         super().__init__(
-            num_rows=1,
-            num_cols=1,
+            num_rows=num_rows,
+            num_cols=num_cols,
             room_size=room_size,
             seed=seed
         )
@@ -58,6 +58,44 @@ class Level_GoToRedBall(RoomGridLevel):
         self.add_distractors(num_distractors=self.num_dists, all_unique=False)
 
         # Make sure no unblocking is required
+        self.check_objs_reachable()
+
+        self.instrs = GoToInstr(ObjDesc(obj.type, obj.color))
+
+
+class Level_GoToRedBallR3(Level_GoToRedBall):
+    """
+    Same as Level_GoToRedBall with grid size 3x3
+    Ensures that only one RedBall is present in the Grid
+    """
+
+    def __init__(self, room_size=8, num_dists=7, seed=None):
+        self.num_dists = num_dists
+        super().__init__(
+            num_rows=3,
+            num_cols=3,
+            room_size=room_size,
+            seed=seed
+        )
+    def gen_mission(self):
+        self.place_agent(1,1)
+
+        # Ensure there is only one red or blue ball
+        dists = self.add_distractors(num_distractors=self.num_dists, all_unique=False)
+        for dist in dists:
+            if dist.type == 'ball' and (dist.color == 'red'):
+                raise RejectSampling('can only have one blue or red ball')
+        #self.add_distractors(num_distractors=self.num_dists, all_unique=False)
+
+        i = self._rand_int(0, self.num_rows)
+        j = self._rand_int(0, self.num_cols)
+
+        if i==1 and j==1:
+            raise RejectSampling('agent and obj should not be in the same room')
+        obj, _ = self.add_object(i, j, 'ball', 'red')
+
+        self.connect_all()
+
         self.check_objs_reachable()
 
         self.instrs = GoToInstr(ObjDesc(obj.type, obj.color))
@@ -632,6 +670,248 @@ class Level_SynthSeq(LevelGen):
             implicit_unlock=False
         )
 
+class Level_PresetMaze(RoomGridLevel):
+    """
+    Preset Maze level: Fixed doors, distractors and objects
+    Agent Start location is variable
+    Instruction : put the blue key next to a purple box and open the yellow door
+    """
+    def add_object_pos(self, kind, color, pos_x, pos_y):
+        if kind == 'key':
+            obj = Key(color)
+        elif kind == 'ball':
+            obj = Ball(color)
+        elif kind == 'box':
+            obj = Box(color)
+        self.put_obj(obj, pos_x, pos_y)
+        return obj, [pos_x, pos_y]
+
+    def add_distractors(self, i=None, j=None, num_distractors=10, all_unique=True):
+        """
+        Add specific objects as distractors that can potentially distract/confuse the agent.
+        """
+
+        objs = []
+        # type, color, room_i, room_j, pos_x, pos_y
+        objs.append(['ball', 'red', 1, 1, 11, 12])
+        objs.append(['ball', 'yellow', 1, 0, 9, 4])
+        objs.append(['box', 'red', 0, 2, 2, 16])
+        objs.append(['box', 'green', 0, 1, 2, 10])
+        objs.append(['ball', 'blue', 1, 0, 13, 5])
+        objs.append(['key', 'green', 0, 0, 4, 6])
+        objs.append(['key', 'grey', 2, 2, 16, 16])
+        objs.append(['box', 'green', 1, 1, 13, 13])
+        objs.append(['key', 'red', 1, 0, 12, 3])
+        objs.append(['ball', 'grey', 2, 0, 17, 4])
+        objs.append(['ball', 'red', 0, 2, 4, 19])
+        objs.append(['ball', 'grey', 1, 2, 10, 18])
+        objs.append(['ball', 'yellow', 0, 1, 4, 9])
+        objs.append(['ball', 'purple', 2, 2, 15, 17])
+        objs.append(['key', 'red', 2, 1, 15, 11])
+        objs.append(['key', 'yellow', 1, 0, 8, 4])
+        objs.append(['key', 'green', 1, 2, 13, 16])
+        objs.append(['ball', 'yellow', 2, 0, 16, 6])
+        objs.append(['key', 'blue', 0, 1, 3, 10])
+        objs.append(['box', 'purple', 2, 0, 17, 3])
+
+        dists = []
+        for desc in objs:
+            kind, color, room_i, room_j, pos_x, pos_y = desc
+            dist, pos = self.add_object_pos(kind, color, pos_x, pos_y)
+            dists.append(dist)
+
+        return dists
+
+    def add_door(self, i, j, door_idx=None, color=None, locked=None, pos_x=None, pos_y=None):
+        """
+        Add a door to a room, connecting it to a neighbor
+        """
+
+        room = self.get_room(i, j)
+
+        if door_idx == None:
+            # Need to make sure that there is a neighbor along this wall
+            # and that there is not already a door
+            while True:
+                door_idx = self._rand_int(0, 4)
+                if room.neighbors[door_idx] and room.doors[door_idx] is None:
+                    break
+
+        if color == None:
+            color = self._rand_color()
+
+        if locked is None:
+            locked = self._rand_bool()
+
+        assert room.doors[door_idx] is None, "door already exists"
+
+        room.locked = locked
+        door = Door(color, is_locked=locked)
+
+        if pos_x is not None and pos_y is not None:
+            pos = [pos_x, pos_y]
+        else:
+            pos = room.door_pos[door_idx]
+        self.grid.set(*pos, door)
+        door.cur_pos = pos
+
+        neighbor = room.neighbors[door_idx]
+        room.doors[door_idx] = door
+        neighbor.doors[(door_idx+2) % 4] = door
+
+        return door, pos
+
+    def connect_all(self):
+        '''
+        Overrides the connect_all() method
+        Connects a 3x3 maze with doors at pre-specified location
+        '''
+        door_desc = []
+        door_desc.append([2 ,0, 1, 16, 7, 'green'])
+        door_desc.append([2 ,0 ,2 ,14, 6, 'purple'])
+        door_desc.append([1 ,1 ,2 ,7, 9, 'green'])
+        door_desc.append([1 ,1 ,0 ,14, 12, 'purple'])
+        door_desc.append([1 ,0 ,1 ,11, 7, 'red'])
+        door_desc.append([2 ,1 ,1 ,16, 14, 'blue'])
+        door_desc.append([0 ,2 ,3 ,2, 14, 'grey'])
+        door_desc.append([1 ,2 ,3 ,11, 14, 'purple'])
+        door_desc.append([0 ,1 ,3 ,2, 7, 'red'])
+        door_desc.append([1 ,2 ,0 ,14, 18, 'yellow'])
+
+        for desc in door_desc:
+            i,j,idx,x,y,color = desc
+            door, pos = self.add_door(i, j, idx, color, locked=False, pos_x=x, pos_y=y)
+
+class Level_PresetMazePutNextOpen(Level_PresetMaze):
+
+    def gen_mission(self):
+        self.place_agent(1,1)
+
+        # Ensure there is only one red or blue ball
+        dists = self.add_distractors()
+
+        # Instantiates objects inside specific rooms & walls
+        blue_key, _ = self.add_object_pos('key', 'blue', 3, 10 )
+        purple_box, _ = self.add_object_pos('box', 'purple', 17, 3)
+
+        self.connect_all()
+        self.open_all_doors()
+
+        self.check_objs_reachable()
+
+        instr_a = PutNextInstr(ObjDesc(blue_key.type, blue_key.color),
+                                ObjDesc(purple_box.type, purple_box.color))
+        instr_b = OpenInstr(ObjDesc('door', 'yellow'))
+        self.instrs = AndInstr(instr_a, instr_b)
+
+class Level_PresetMazeGoToBlueKey(Level_PresetMaze):
+
+    def gen_mission(self):
+        obj_kind, obj_color = 'key', 'blue'
+
+        self.place_agent(1,1)
+
+        # Ensure there is only one red or blue ball
+        dists = self.add_distractors()
+
+        self.connect_all()
+        self.open_all_doors()
+
+        self.check_objs_reachable()
+
+        self.instrs = GoToInstr(ObjDesc(obj_kind, obj_color))
+
+class Level_PresetMazeGoTo(Level_PresetMaze):
+
+    def gen_mission(self):
+        self.place_agent()
+        self.connect_all()
+        objs = self.add_distractors()
+        self.check_objs_reachable()
+        obj = self._rand_elem(objs)
+        self.open_all_doors()
+        self.instrs = GoToInstr(ObjDesc(obj.type, obj.color))
+
+class Level_PresetMazePickup(Level_PresetMaze):
+    """
+    Pick up an object in a Preset Maze, the object may be in another room.
+    """
+
+    def gen_mission(self):
+        self.place_agent()
+        self.connect_all()
+        objs = self.add_distractors()
+        self.check_objs_reachable()
+        obj = self._rand_elem(objs)
+        self.open_all_doors()
+        self.instrs = PickupInstr(ObjDesc(obj.type, obj.color))
+
+
+class Level_PresetMazePutNext(Level_PresetMaze):
+    """
+    Put an object next to another object. Either of these may be in another room.
+    """
+
+    def gen_mission(self):
+        self.place_agent()
+        self.connect_all()
+        objs = self.add_distractors()
+        self.check_objs_reachable()
+        self.open_all_doors()
+        o1, o2 = self._rand_subset(objs, 2)
+        self.instrs = PutNextInstr(
+            ObjDesc(o1.type, o1.color),
+            ObjDesc(o2.type, o2.color)
+        )
+
+
+class Level_PresetMazeGoToSeq(Level_PresetMaze):
+    """
+    Put an object next to another object. Either of these may be in another room.
+    """
+
+    def gen_mission(self):
+        self.place_agent()
+        self.connect_all()
+        objs = self.add_distractors()
+        self.open_all_doors()
+        self.check_objs_reachable()
+        o1, o2 = self._rand_subset(objs, 2)
+        instr_a = GoToInstr(ObjDesc(o1.type, o1.color))
+        instr_b = GoToInstr(ObjDesc(o2.type, o2.color))
+        self.instrs = AndInstr(instr_a, instr_b)
+
+class Level_PutNextOpen(Level_SynthSeq):
+    """
+    Custom SynthSeq level:
+    put the blue key next to a purple box and open the yellow door
+    """
+
+    def gen_mission(self):
+        self.place_agent(1,1)
+
+        # Ensure there is only one red or blue ball
+        print("Adding distractors")
+        dists = self.add_distractors(num_distractors=self.num_dists, all_unique=False)
+        for dist in dists:
+            if dist.type == 'key' and (dist.color == 'blue'):
+                raise RejectSampling('can only have one blue key')
+            if dist.type == 'box' and (dist.color == 'purple'):
+                raise RejectSampling('can only have one purple box')
+
+        # Instantiates objects inside specific rooms & walls
+        blue_key, _ = self.add_object(0, 1, 'key', 'blue')
+        purple_box, _ = self.add_object(2, 0, 'box', 'purple')
+        yellow_door, _ = self.add_door(1, 2, 0, 'yellow', locked=False)
+
+        self.connect_all(door_colors=['blue','red','purple','grey','green'])
+
+        self.check_objs_reachable()
+
+        instr_a = PutNextInstr(ObjDesc(blue_key.type, blue_key.color),
+                                ObjDesc(purple_box.type, purple_box.color))
+        instr_b = OpenInstr(ObjDesc(yellow_door.type, yellow_door.color))
+        self.instrs = AndInstr(instr_a, instr_b)
 
 class Level_MiniBossLevel(LevelGen):
     def __init__(self, seed=None):
