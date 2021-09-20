@@ -27,6 +27,8 @@ import re
 import copy
 
 import babyai.utils as utils
+from gym_minigrid.minigrid import COLOR_NAMES, DIR_TO_VEC
+
 
 # Object types we are allowed to describe in language
 OBJ_TYPES = ["box", "ball", "key", "door"]
@@ -37,10 +39,15 @@ OBJ_TYPES_NOT_DOOR = list(filter(lambda t: t != "door", OBJ_TYPES))
 # Locations are all relative to the agent's starting position
 LOC_NAMES = ["left", "right", "front", "behind"]
 
+ACTION_TYPES = ["go", "pick", "open", "put"]
+
 # Environment flag to indicate that done actions should be
 # used by the verifier
 use_done_actions = os.environ.get("BABYAI_DONE_ACTIONS", False)
 
+obj_type_indx_map = {obj_type: indx for indx, obj_type in enumerate(OBJ_TYPES)}
+color_indx_map = {color: indx for indx, color in enumerate(COLOR_NAMES)}
+action_indx_map = {action: indx for indx, action in enumerate(ACTION_TYPES)}
 # Parse arguments
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -174,7 +181,22 @@ def generate_demos(n_episodes, valid, seed, shift=0):
 
         actions = []
         mission = obs["mission"]
-        # subtasks = breakdown_composite(mission)
+        # color, obj_type, loc = (
+        #     env.instrs.desc.color,
+        #     env.instrs.desc.type,
+        #     env.instrs.desc.loc,
+        # )
+        # obj_desc = [color, obj_type, loc]
+        # color_one_hot = np.zeros(len(COLOR_NAMES))
+        # color_one_hot[color_indx_map[color]] = 1
+
+        # obj_type_one_hot = np.zeros(len(OBJ_TYPES))
+        # obj_type_one_hot[obj_type_indx_map[obj_type]] = 1
+
+        # action = mission.split(" ")[0]
+        # action_one_hot = np.zeros(len(ACTION_TYPES))
+        # action_one_hot[action_indx_map[action.lower()]] = 1
+
         images = []
         directions = []
 
@@ -242,6 +264,10 @@ def generate_demos(n_episodes, valid, seed, shift=0):
                         actions,
                         np.array(subtask_complete),
                         subtasks,
+                        obj_desc,
+                        action_one_hot,
+                        obj_type_one_hot,
+                        color_one_hot,
                     )
                 )
                 just_crashed = False
