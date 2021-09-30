@@ -821,6 +821,23 @@ class Level_PresetMazeGoToBlueKey(Level_PresetMaze):
 
         self.instrs = GoToInstr(ObjDesc(obj_kind, obj_color))
 
+class Level_PresetMazeGoPutPick(Level_PresetMaze):
+
+    def gen_mission(self):
+
+        self.place_agent(1, 1)
+        dists = self.add_distractors()
+        self.connect_all()
+        self.open_all_doors()
+        self.check_objs_reachable()
+
+        self.instr_a = GoToInstr(ObjDesc('box', 'purple'))
+        self.instr_b = PutNextInstr(ObjDesc('key', 'red'),
+                                    ObjDesc('ball', 'purple'))
+        self.instr_c = PickupInstr(ObjDesc('box','red'))
+
+        self.instrs = TripleAndInstr(self.instr_a, self.instr_b, self.instr_c)
+
 class Level_PresetMazeGoTo(Level_PresetMaze):
 
     def gen_mission(self):
@@ -831,6 +848,7 @@ class Level_PresetMazeGoTo(Level_PresetMaze):
         obj = self._rand_elem(objs)
         self.open_all_doors()
         self.instrs = GoToInstr(ObjDesc(obj.type, obj.color))
+
 
 class Level_PresetMazePickup(Level_PresetMaze):
     """
