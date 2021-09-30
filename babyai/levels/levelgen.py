@@ -62,6 +62,7 @@ class RoomGridLevel(RoomGrid):
         elif status == 'failure':
             done = True
             reward = 0
+        info['agent_pos'] = self.agent_pos
 
         return obs, reward, done, info
 
