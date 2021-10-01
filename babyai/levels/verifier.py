@@ -575,8 +575,11 @@ class TripleAndInstr(SeqInstr):
         self.a_done = False
         self.b_done = False
         self.c_done = False
+        self.a_reward = False
+        self.b_reward = False
+        self.c_reward = False
 
-    def verify(self, action):
+    def verify(self, action, partial=False):
         if self.a_done != 'success':
             self.a_done = self.instr_a.verify(action)
 
@@ -592,5 +595,19 @@ class TripleAndInstr(SeqInstr):
 
         if self.a_done == 'success' and self.b_done == 'success' and self.c_done == 'success':
             return 'success'
+        
+        #Partial Reward
+        if partial:
+            if self.a_done == 'success' and not self.a_reward:
+                self.a_reward = True
+                return 'partial'
+            
+            if self.b_done == 'success' and not self.b_reward:
+                self.b_reward = True
+                return 'partial'
+
+            if self.c_done == 'success' and not self.c_reward:
+                self.c_reward = True
+                return 'partial'
 
         return 'continue'
