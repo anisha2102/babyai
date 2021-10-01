@@ -7,6 +7,7 @@ from .verifier import *
 from .levelgen import *
 from gym_minigrid.minigrid import *
 
+
 class Level_GoToRedBallGrey(RoomGridLevel):
     """
     Go to the red ball, single room, with distractors.
@@ -16,20 +17,15 @@ class Level_GoToRedBallGrey(RoomGridLevel):
 
     def __init__(self, room_size=8, num_dists=7, seed=None):
         self.num_dists = num_dists
-        super().__init__(
-            num_rows=1,
-            num_cols=1,
-            room_size=room_size,
-            seed=seed
-        )
+        super().__init__(num_rows=1, num_cols=1, room_size=room_size, seed=seed)
 
     def gen_mission(self):
         self.place_agent()
-        obj, _ = self.add_object(0, 0, 'ball', 'red')
+        obj, _ = self.add_object(0, 0, "ball", "red")
         dists = self.add_distractors(num_distractors=self.num_dists, all_unique=False)
 
         for dist in dists:
-            dist.color = 'grey'
+            dist.color = "grey"
 
         # Make sure no unblocking is required
         self.check_objs_reachable()
@@ -46,15 +42,12 @@ class Level_GoToRedBall(RoomGridLevel):
     def __init__(self, room_size=8, num_dists=7, num_rows=1, num_cols=1, seed=None):
         self.num_dists = num_dists
         super().__init__(
-            num_rows=num_rows,
-            num_cols=num_cols,
-            room_size=room_size,
-            seed=seed
+            num_rows=num_rows, num_cols=num_cols, room_size=room_size, seed=seed
         )
 
     def gen_mission(self):
         self.place_agent()
-        obj, _ = self.add_object(0, 0, 'ball', 'red')
+        obj, _ = self.add_object(0, 0, "ball", "red")
         self.add_distractors(num_distractors=self.num_dists, all_unique=False)
 
         # Make sure no unblocking is required
@@ -71,28 +64,24 @@ class Level_GoToRedBallR3(Level_GoToRedBall):
 
     def __init__(self, room_size=8, num_dists=7, seed=None):
         self.num_dists = num_dists
-        super().__init__(
-            num_rows=3,
-            num_cols=3,
-            room_size=room_size,
-            seed=seed
-        )
+        super().__init__(num_rows=3, num_cols=3, room_size=room_size, seed=seed)
+
     def gen_mission(self):
-        self.place_agent(1,1)
+        self.place_agent(1, 1)
 
         # Ensure there is only one red or blue ball
         dists = self.add_distractors(num_distractors=self.num_dists, all_unique=False)
         for dist in dists:
-            if dist.type == 'ball' and (dist.color == 'red'):
-                raise RejectSampling('can only have one blue or red ball')
-        #self.add_distractors(num_distractors=self.num_dists, all_unique=False)
+            if dist.type == "ball" and (dist.color == "red"):
+                raise RejectSampling("can only have one blue or red ball")
+        # self.add_distractors(num_distractors=self.num_dists, all_unique=False)
 
         i = self._rand_int(0, self.num_rows)
         j = self._rand_int(0, self.num_cols)
 
-        if i==1 and j==1:
-            raise RejectSampling('agent and obj should not be in the same room')
-        obj, _ = self.add_object(i, j, 'ball', 'red')
+        if i == 1 and j == 1:
+            raise RejectSampling("agent and obj should not be in the same room")
+        obj, _ = self.add_object(i, j, "ball", "red")
 
         self.connect_all()
 
@@ -116,12 +105,7 @@ class Level_GoToObj(RoomGridLevel):
     """
 
     def __init__(self, room_size=8, seed=None):
-        super().__init__(
-            num_rows=1,
-            num_cols=1,
-            room_size=room_size,
-            seed=seed
-        )
+        super().__init__(num_rows=1, num_cols=1, room_size=room_size, seed=seed)
 
     def gen_mission(self):
         self.place_agent()
@@ -147,12 +131,7 @@ class Level_GoToLocal(RoomGridLevel):
 
     def __init__(self, room_size=8, num_dists=8, seed=None):
         self.num_dists = num_dists
-        super().__init__(
-            num_rows=1,
-            num_cols=1,
-            room_size=room_size,
-            seed=seed
-        )
+        super().__init__(num_rows=1, num_cols=1, room_size=room_size, seed=seed)
 
     def gen_mission(self):
         self.place_agent()
@@ -230,12 +209,7 @@ class Level_PutNextLocal(RoomGridLevel):
 
     def __init__(self, room_size=8, num_objs=8, seed=None):
         self.num_objs = num_objs
-        super().__init__(
-            num_rows=1,
-            num_cols=1,
-            room_size=room_size,
-            seed=seed
-        )
+        super().__init__(num_rows=1, num_cols=1, room_size=room_size, seed=seed)
 
     def gen_mission(self):
         self.place_agent()
@@ -244,8 +218,7 @@ class Level_PutNextLocal(RoomGridLevel):
         o1, o2 = self._rand_subset(objs, 2)
 
         self.instrs = PutNextInstr(
-            ObjDesc(o1.type, o1.color),
-            ObjDesc(o2.type, o2.color)
+            ObjDesc(o1.type, o1.color), ObjDesc(o2.type, o2.color)
         )
 
 
@@ -271,15 +244,12 @@ class Level_GoTo(RoomGridLevel):
         num_cols=3,
         num_dists=18,
         doors_open=False,
-        seed=None
+        seed=None,
     ):
         self.num_dists = num_dists
         self.doors_open = doors_open
         super().__init__(
-            num_rows=num_rows,
-            num_cols=num_cols,
-            room_size=room_size,
-            seed=seed
+            num_rows=num_rows, num_cols=num_cols, room_size=room_size, seed=seed
         )
 
     def gen_mission(self):
@@ -359,7 +329,7 @@ class Level_GoToImpUnlock(RoomGridLevel):
             jk = self._rand_int(0, self.num_rows)
             if ik is id and jk is jd:
                 continue
-            self.add_object(ik, jk, 'key', door.color)
+            self.add_object(ik, jk, "key", door.color)
             break
 
         self.connect_all()
@@ -371,12 +341,7 @@ class Level_GoToImpUnlock(RoomGridLevel):
         for i in range(self.num_cols):
             for j in range(self.num_rows):
                 if i is not id or j is not jd:
-                    self.add_distractors(
-                        i,
-                        j,
-                        num_distractors=2,
-                        all_unique=False
-                    )
+                    self.add_distractors(i, j, num_distractors=2, all_unique=False)
 
         # The agent must be placed after all the object to respect constraints
         while True:
@@ -391,7 +356,7 @@ class Level_GoToImpUnlock(RoomGridLevel):
 
         # Add a single object to the locked room
         # The instruction requires going to an object matching that description
-        obj, = self.add_distractors(id, jd, num_distractors=1, all_unique=False)
+        (obj,) = self.add_distractors(id, jd, num_distractors=1, all_unique=False)
         self.instrs = GoToInstr(ObjDesc(obj.type, obj.color))
 
 
@@ -423,7 +388,7 @@ class Level_UnblockPickup(RoomGridLevel):
         # Ensure that at least one object is not reachable without unblocking
         # Note: the selected object will still be reachable most of the time
         if self.check_objs_reachable(raise_exc=False):
-            raise RejectSampling('all objects reachable')
+            raise RejectSampling("all objects reachable")
 
         obj = self._rand_elem(objs)
         self.instrs = PickupInstr(ObjDesc(obj.type, obj.color))
@@ -473,7 +438,7 @@ class Level_Unlock(RoomGridLevel):
             jk = self._rand_int(0, self.num_rows)
             if ik is id and jk is jd:
                 continue
-            self.add_object(ik, jk, 'key', door.color)
+            self.add_object(ik, jk, "key", door.color)
             break
 
         # With 50% probability, ensure that the locked door is the only
@@ -491,12 +456,7 @@ class Level_Unlock(RoomGridLevel):
         for i in range(self.num_cols):
             for j in range(self.num_rows):
                 if i is not id or j is not jd:
-                    self.add_distractors(
-                        i,
-                        j,
-                        num_distractors=3,
-                        all_unique=False
-                    )
+                    self.add_distractors(i, j, num_distractors=3, all_unique=False)
 
         # The agent must be placed after all the object to respect constraints
         while True:
@@ -524,8 +484,7 @@ class Level_PutNext(RoomGridLevel):
         self.check_objs_reachable()
         o1, o2 = self._rand_subset(objs, 2)
         self.instrs = PutNextInstr(
-            ObjDesc(o1.type, o1.color),
-            ObjDesc(o2.type, o2.color)
+            ObjDesc(o1.type, o1.color), ObjDesc(o2.type, o2.color)
         )
 
 
@@ -542,14 +501,14 @@ class Level_PickupLoc(LevelGen):
         # of ambiguous locations within the same room
         super().__init__(
             seed=seed,
-            action_kinds=['pickup'],
-            instr_kinds=['action'],
+            action_kinds=["pickup"],
+            instr_kinds=["action"],
             num_rows=1,
             num_cols=1,
             num_dists=8,
             locked_room_prob=0,
             locations=True,
-            unblocking=False
+            unblocking=False,
         )
 
 
@@ -563,24 +522,17 @@ class Level_GoToSeq(LevelGen):
     No unblocking.
     """
 
-    def __init__(
-        self,
-        room_size=8,
-        num_rows=3,
-        num_cols=3,
-        num_dists=18,
-        seed=None
-    ):
+    def __init__(self, room_size=8, num_rows=3, num_cols=3, num_dists=18, seed=None):
         super().__init__(
             room_size=room_size,
             num_rows=num_rows,
             num_cols=num_cols,
             num_dists=num_dists,
             seed=seed,
-            action_kinds=['goto'],
+            action_kinds=["goto"],
             locked_room_prob=0,
             locations=False,
-            unblocking=False
+            unblocking=False,
         )
 
 
@@ -598,14 +550,7 @@ class Level_Synth(LevelGen):
     Competencies: Maze, Unblock, Unlock, GoTo, PickUp, PutNext, Open
     """
 
-    def __init__(
-        self,
-        room_size=8,
-        num_rows=3,
-        num_cols=3,
-        num_dists=18,
-        seed=None
-    ):
+    def __init__(self, room_size=8, num_rows=3, num_cols=3, num_dists=18, seed=None):
         # We add many distractors to increase the probability
         # of ambiguous locations within the same room
         super().__init__(
@@ -614,22 +559,16 @@ class Level_Synth(LevelGen):
             num_cols=num_cols,
             num_dists=num_dists,
             seed=seed,
-            instr_kinds=['action'],
+            instr_kinds=["action"],
             locations=False,
             unblocking=True,
-            implicit_unlock=False
+            implicit_unlock=False,
         )
 
 
 class Level_SynthS5R2(Level_Synth):
     def __init__(self, seed=None):
-        super().__init__(
-            room_size=5,
-            num_rows=2,
-            num_cols=2,
-            num_dists=7,
-            seed=seed
-        )
+        super().__init__(room_size=5, num_rows=2, num_cols=2, num_dists=7, seed=seed)
 
 
 class Level_SynthLoc(LevelGen):
@@ -645,10 +584,10 @@ class Level_SynthLoc(LevelGen):
         # of ambiguous locations within the same room
         super().__init__(
             seed=seed,
-            instr_kinds=['action'],
+            instr_kinds=["action"],
             locations=True,
             unblocking=True,
-            implicit_unlock=False
+            implicit_unlock=False,
         )
 
 
@@ -664,11 +603,9 @@ class Level_SynthSeq(LevelGen):
         # We add many distractors to increase the probability
         # of ambiguous locations within the same room
         super().__init__(
-            seed=seed,
-            locations=True,
-            unblocking=True,
-            implicit_unlock=False
+            seed=seed, locations=True, unblocking=True, implicit_unlock=False
         )
+
 
 class Level_PresetMaze(RoomGridLevel):
     """
@@ -676,12 +613,13 @@ class Level_PresetMaze(RoomGridLevel):
     Agent Start location is variable
     Instruction : put the blue key next to a purple box and open the yellow door
     """
+
     def add_object_pos(self, kind, color, pos_x, pos_y):
-        if kind == 'key':
+        if kind == "key":
             obj = Key(color)
-        elif kind == 'ball':
+        elif kind == "ball":
             obj = Ball(color)
-        elif kind == 'box':
+        elif kind == "box":
             obj = Box(color)
         self.put_obj(obj, pos_x, pos_y)
         return obj, [pos_x, pos_y]
@@ -693,26 +631,26 @@ class Level_PresetMaze(RoomGridLevel):
 
         objs = []
         # type, color, room_i, room_j, pos_x, pos_y
-        objs.append(['ball', 'red', 1, 1, 11, 12])
-        objs.append(['ball', 'yellow', 1, 0, 9, 4])
-        objs.append(['box', 'red', 0, 2, 2, 16])
-        objs.append(['box', 'green', 0, 1, 2, 10])
-        objs.append(['ball', 'blue', 1, 0, 13, 5])
-        objs.append(['key', 'green', 0, 0, 4, 6])
-        objs.append(['key', 'grey', 2, 2, 16, 16])
-        objs.append(['box', 'green', 1, 1, 13, 13])
-        objs.append(['key', 'red', 1, 0, 12, 3])
-        objs.append(['ball', 'grey', 2, 0, 17, 4])
-        objs.append(['ball', 'red', 0, 2, 4, 19])
-        objs.append(['ball', 'grey', 1, 2, 10, 18])
-        objs.append(['ball', 'yellow', 0, 1, 4, 9])
-        objs.append(['ball', 'purple', 2, 2, 15, 17])
-        objs.append(['key', 'red', 2, 1, 15, 11])
-        objs.append(['key', 'yellow', 1, 0, 8, 4])
-        objs.append(['key', 'green', 1, 2, 13, 16])
-        objs.append(['ball', 'yellow', 2, 0, 16, 6])
-        objs.append(['key', 'blue', 0, 1, 3, 10])
-        objs.append(['box', 'purple', 2, 0, 17, 3])
+        objs.append(["ball", "red", 1, 1, 11, 12])
+        objs.append(["ball", "yellow", 1, 0, 9, 4])
+        objs.append(["box", "red", 0, 2, 2, 16])
+        objs.append(["box", "green", 0, 1, 2, 10])
+        objs.append(["ball", "blue", 1, 0, 13, 5])
+        objs.append(["key", "green", 0, 0, 4, 6])
+        objs.append(["key", "grey", 2, 2, 16, 16])
+        objs.append(["box", "green", 1, 1, 13, 13])
+        objs.append(["key", "red", 1, 0, 12, 3])
+        objs.append(["ball", "grey", 2, 0, 17, 4])
+        objs.append(["ball", "red", 0, 2, 4, 19])
+        objs.append(["ball", "grey", 1, 2, 10, 18])
+        objs.append(["ball", "yellow", 0, 1, 4, 9])
+        objs.append(["ball", "purple", 2, 2, 15, 17])
+        objs.append(["key", "red", 2, 1, 15, 11])
+        objs.append(["key", "yellow", 1, 0, 8, 4])
+        objs.append(["key", "green", 1, 2, 13, 16])
+        objs.append(["ball", "yellow", 2, 0, 16, 6])
+        objs.append(["key", "blue", 0, 1, 3, 10])
+        objs.append(["box", "purple", 2, 0, 17, 3])
 
         dists = []
         for desc in objs:
@@ -722,7 +660,9 @@ class Level_PresetMaze(RoomGridLevel):
 
         return dists
 
-    def add_door(self, i, j, door_idx=None, color=None, locked=None, pos_x=None, pos_y=None):
+    def add_door(
+        self, i, j, door_idx=None, color=None, locked=None, pos_x=None, pos_y=None
+    ):
         """
         Add a door to a room, connecting it to a neighbor
         """
@@ -757,59 +697,61 @@ class Level_PresetMaze(RoomGridLevel):
 
         neighbor = room.neighbors[door_idx]
         room.doors[door_idx] = door
-        neighbor.doors[(door_idx+2) % 4] = door
+        neighbor.doors[(door_idx + 2) % 4] = door
 
         return door, pos
 
     def connect_all(self):
-        '''
+        """
         Overrides the connect_all() method
         Connects a 3x3 maze with doors at pre-specified location
-        '''
+        """
         door_desc = []
-        door_desc.append([2 ,0, 1, 16, 7, 'green'])
-        door_desc.append([2 ,0 ,2 ,14, 6, 'purple'])
-        door_desc.append([1 ,1 ,2 ,7, 9, 'green'])
-        door_desc.append([1 ,1 ,0 ,14, 12, 'purple'])
-        door_desc.append([1 ,0 ,1 ,11, 7, 'red'])
-        door_desc.append([2 ,1 ,1 ,16, 14, 'blue'])
-        door_desc.append([0 ,2 ,3 ,2, 14, 'grey'])
-        door_desc.append([1 ,2 ,3 ,11, 14, 'purple'])
-        door_desc.append([0 ,1 ,3 ,2, 7, 'red'])
-        door_desc.append([1 ,2 ,0 ,14, 18, 'yellow'])
+        door_desc.append([2, 0, 1, 16, 7, "green"])
+        door_desc.append([2, 0, 2, 14, 6, "purple"])
+        door_desc.append([1, 1, 2, 7, 9, "green"])
+        door_desc.append([1, 1, 0, 14, 12, "purple"])
+        door_desc.append([1, 0, 1, 11, 7, "red"])
+        door_desc.append([2, 1, 1, 16, 14, "blue"])
+        door_desc.append([0, 2, 3, 2, 14, "grey"])
+        door_desc.append([1, 2, 3, 11, 14, "purple"])
+        door_desc.append([0, 1, 3, 2, 7, "red"])
+        door_desc.append([1, 2, 0, 14, 18, "yellow"])
 
         for desc in door_desc:
-            i,j,idx,x,y,color = desc
+            i, j, idx, x, y, color = desc
             door, pos = self.add_door(i, j, idx, color, locked=False, pos_x=x, pos_y=y)
 
-class Level_PresetMazePutNextOpen(Level_PresetMaze):
 
+class Level_PresetMazePutNextOpen(Level_PresetMaze):
     def gen_mission(self):
-        self.place_agent(1,1)
+        self.place_agent(1, 1)
 
         # Ensure there is only one red or blue ball
         dists = self.add_distractors()
 
         # Instantiates objects inside specific rooms & walls
-        blue_key, _ = self.add_object_pos('key', 'blue', 3, 10 )
-        purple_box, _ = self.add_object_pos('box', 'purple', 17, 3)
+        blue_key, _ = self.add_object_pos("key", "blue", 3, 10)
+        purple_box, _ = self.add_object_pos("box", "purple", 17, 3)
 
         self.connect_all()
         self.open_all_doors()
 
         self.check_objs_reachable()
 
-        instr_a = PutNextInstr(ObjDesc(blue_key.type, blue_key.color),
-                                ObjDesc(purple_box.type, purple_box.color))
-        instr_b = OpenInstr(ObjDesc('door', 'yellow'))
+        instr_a = PutNextInstr(
+            ObjDesc(blue_key.type, blue_key.color),
+            ObjDesc(purple_box.type, purple_box.color),
+        )
+        instr_b = OpenInstr(ObjDesc("door", "yellow"))
         self.instrs = AndInstr(instr_a, instr_b)
 
+
 class Level_PresetMazeGoToBlueKey(Level_PresetMaze):
-
     def gen_mission(self):
-        obj_kind, obj_color = 'key', 'blue'
+        obj_kind, obj_color = "key", "blue"
 
-        self.place_agent(1,1)
+        self.place_agent(1, 1)
 
         # Ensure there is only one red or blue ball
         dists = self.add_distractors()
@@ -821,8 +763,8 @@ class Level_PresetMazeGoToBlueKey(Level_PresetMaze):
 
         self.instrs = GoToInstr(ObjDesc(obj_kind, obj_color))
 
-class Level_PresetMazeGoTo(Level_PresetMaze):
 
+class Level_PresetMazeGoTo(Level_PresetMaze):
     def gen_mission(self):
         self.place_agent()
         self.connect_all()
@@ -831,6 +773,7 @@ class Level_PresetMazeGoTo(Level_PresetMaze):
         obj = self._rand_elem(objs)
         self.open_all_doors()
         self.instrs = GoToInstr(ObjDesc(obj.type, obj.color))
+
 
 class Level_PresetMazePickup(Level_PresetMaze):
     """
@@ -860,8 +803,7 @@ class Level_PresetMazePutNext(Level_PresetMaze):
         self.open_all_doors()
         o1, o2 = self._rand_subset(objs, 2)
         self.instrs = PutNextInstr(
-            ObjDesc(o1.type, o1.color),
-            ObjDesc(o2.type, o2.color)
+            ObjDesc(o1.type, o1.color), ObjDesc(o2.type, o2.color)
         )
 
 
@@ -881,6 +823,7 @@ class Level_PresetMazeGoToSeq(Level_PresetMaze):
         instr_b = GoToInstr(ObjDesc(o2.type, o2.color))
         self.instrs = AndInstr(instr_a, instr_b)
 
+
 class Level_PutNextOpen(Level_SynthSeq):
     """
     Custom SynthSeq level:
@@ -888,30 +831,33 @@ class Level_PutNextOpen(Level_SynthSeq):
     """
 
     def gen_mission(self):
-        self.place_agent(1,1)
+        self.place_agent(1, 1)
 
         # Ensure there is only one red or blue ball
         print("Adding distractors")
         dists = self.add_distractors(num_distractors=self.num_dists, all_unique=False)
         for dist in dists:
-            if dist.type == 'key' and (dist.color == 'blue'):
-                raise RejectSampling('can only have one blue key')
-            if dist.type == 'box' and (dist.color == 'purple'):
-                raise RejectSampling('can only have one purple box')
+            if dist.type == "key" and (dist.color == "blue"):
+                raise RejectSampling("can only have one blue key")
+            if dist.type == "box" and (dist.color == "purple"):
+                raise RejectSampling("can only have one purple box")
 
         # Instantiates objects inside specific rooms & walls
-        blue_key, _ = self.add_object(0, 1, 'key', 'blue')
-        purple_box, _ = self.add_object(2, 0, 'box', 'purple')
-        yellow_door, _ = self.add_door(1, 2, 0, 'yellow', locked=False)
+        blue_key, _ = self.add_object(0, 1, "key", "blue")
+        purple_box, _ = self.add_object(2, 0, "box", "purple")
+        yellow_door, _ = self.add_door(1, 2, 0, "yellow", locked=False)
 
-        self.connect_all(door_colors=['blue','red','purple','grey','green'])
+        self.connect_all(door_colors=["blue", "red", "purple", "grey", "green"])
 
         self.check_objs_reachable()
 
-        instr_a = PutNextInstr(ObjDesc(blue_key.type, blue_key.color),
-                                ObjDesc(purple_box.type, purple_box.color))
+        instr_a = PutNextInstr(
+            ObjDesc(blue_key.type, blue_key.color),
+            ObjDesc(purple_box.type, purple_box.color),
+        )
         instr_b = OpenInstr(ObjDesc(yellow_door.type, yellow_door.color))
         self.instrs = AndInstr(instr_a, instr_b)
+
 
 class Level_MiniBossLevel(LevelGen):
     def __init__(self, seed=None):
@@ -921,24 +867,18 @@ class Level_MiniBossLevel(LevelGen):
             num_rows=2,
             room_size=5,
             num_dists=7,
-            locked_room_prob=0.25
+            locked_room_prob=0.25,
         )
 
 
 class Level_BossLevel(LevelGen):
     def __init__(self, seed=None):
-        super().__init__(
-            seed=seed
-        )
+        super().__init__(seed=seed)
 
 
 class Level_BossLevelNoUnlock(LevelGen):
     def __init__(self, seed=None):
-        super().__init__(
-            seed=seed,
-            locked_room_prob=0,
-            implicit_unlock=False
-        )
+        super().__init__(seed=seed, locked_room_prob=0, implicit_unlock=False)
 
 
 # Register the levels in this file

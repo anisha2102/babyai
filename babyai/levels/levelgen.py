@@ -22,15 +22,8 @@ class RoomGridLevel(RoomGrid):
     of approximately similar difficulty.
     """
 
-    def __init__(
-        self,
-        room_size=8,
-        **kwargs
-    ):
-        super().__init__(
-            room_size=room_size,
-            **kwargs
-        )
+    def __init__(self, room_size=8, **kwargs):
+        super().__init__(room_size=room_size, **kwargs)
 
     def reset(self, **kwargs):
         obs = super().reset(**kwargs)
@@ -46,7 +39,7 @@ class RoomGridLevel(RoomGrid):
 
         return obs
 
-    def step(self, action):
+    def step(self, action, verify=True):
         obs, reward, done, info = super().step(action)
 
         # If we drop an object, we need to update its position in the environment
@@ -54,21 +47,26 @@ class RoomGridLevel(RoomGrid):
             self.update_objs_poss()
 
         # If we've successfully completed the mission
-        status = self.instrs.verify(action)
+        if verify:
+            status = self.instrs.verify(action)
 
-        if status == 'success':
-            done = True
-            reward = self._reward()
-        elif status == 'failure':
-            done = True
-            reward = 0
+            if status == "success":
+                done = True
+                reward = self._reward()
+            elif status == "failure":
+                done = True
+                reward = 0
 
         return obs, reward, done, info
 
     def update_objs_poss(self, instr=None):
         if instr is None:
             instr = self.instrs
-        if isinstance(instr, BeforeInstr) or isinstance(instr, AndInstr) or isinstance(instr, AfterInstr):
+        if (
+            isinstance(instr, BeforeInstr)
+            or isinstance(instr, AndInstr)
+            or isinstance(instr, AfterInstr)
+        ):
             self.update_objs_poss(instr.instr_a)
             self.update_objs_poss(instr.instr_b)
         else:
@@ -88,11 +86,11 @@ class RoomGridLevel(RoomGrid):
                 self.validate_instrs(self.instrs)
 
             except RecursionError as error:
-                print('Timeout during mission generation:', error)
+                print("Timeout during mission generation:", error)
                 continue
 
             except RejectSampling as error:
-                #print('Sampling rejected:', error)
+                # print('Sampling rejected:', error)
                 continue
 
             break
@@ -106,7 +104,7 @@ class RoomGridLevel(RoomGrid):
         Perform some validation on the generated instructions
         """
         # Gather the colors of locked doors
-        if hasattr(self, 'unblocking') and self.unblocking:
+        if hasattr(self, "unblocking") and self.unblocking:
             colors_of_locked_doors = []
             for i in range(self.num_cols):
                 for j in range(self.num_rows):
@@ -120,31 +118,33 @@ class RoomGridLevel(RoomGrid):
             instr.reset_verifier(self)
 
             # Check that the objects are not already next to each other
-            if set(instr.desc_move.obj_set).intersection(
-                    set(instr.desc_fixed.obj_set)):
+            if set(instr.desc_move.obj_set).intersection(set(instr.desc_fixed.obj_set)):
                 raise RejectSampling(
-                    "there are objects that match both lhs and rhs of PutNext")
+                    "there are objects that match both lhs and rhs of PutNext"
+                )
             if instr.objs_next():
-                raise RejectSampling('objs already next to each other')
+                raise RejectSampling("objs already next to each other")
 
             # Check that we are not asking to move an object next to itself
             move = instr.desc_move
             fixed = instr.desc_fixed
             if len(move.obj_set) == 1 and len(fixed.obj_set) == 1:
                 if move.obj_set[0] is fixed.obj_set[0]:
-                    raise RejectSampling('cannot move an object next to itself')
+                    raise RejectSampling("cannot move an object next to itself")
 
         if isinstance(instr, ActionInstr):
-            if not hasattr(self, 'unblocking') or not self.unblocking:
+            if not hasattr(self, "unblocking") or not self.unblocking:
                 return
             # TODO: either relax this a bit or make the bot handle this super corner-y scenarios
             # Check that the instruction doesn't involve a key that matches the color of a locked door
-            potential_objects = ('desc', 'desc_move', 'desc_fixed')
+            potential_objects = ("desc", "desc_move", "desc_fixed")
             for attr in potential_objects:
                 if hasattr(instr, attr):
                     obj = getattr(instr, attr)
-                    if obj.type == 'key' and obj.color in colors_of_locked_doors:
-                        raise RejectSampling('cannot do anything with/to a key that can be used to open a door')
+                    if obj.type == "key" and obj.color in colors_of_locked_doors:
+                        raise RejectSampling(
+                            "cannot do anything with/to a key that can be used to open a door"
+                        )
             return
 
         if isinstance(instr, SeqInstr):
@@ -227,27 +227,27 @@ class RoomGridLevel(RoomGrid):
 
             # If there is something other than a door in this cell, it
             # blocks reachability
-            if cell and cell.type != 'door':
+            if cell and cell.type != "door":
                 continue
 
             # Visit the horizontal and vertical neighbors
-            stack.append((i+1, j))
-            stack.append((i-1, j))
-            stack.append((i, j+1))
-            stack.append((i, j-1))
+            stack.append((i + 1, j))
+            stack.append((i - 1, j))
+            stack.append((i, j + 1))
+            stack.append((i, j - 1))
 
         # Check that all objects are reachable
         for i in range(self.grid.width):
             for j in range(self.grid.height):
                 cell = self.grid.get(i, j)
 
-                if not cell or cell.type == 'wall':
+                if not cell or cell.type == "wall":
                     continue
 
                 if (i, j) not in reachable:
                     if not raise_exc:
                         return False
-                    raise RejectSampling('unreachable object at ' + str((i, j)))
+                    raise RejectSampling("unreachable object at " + str((i, j)))
 
         # All objects reachable
         return True
@@ -269,9 +269,9 @@ class LevelGen(RoomGridLevel):
         locations=True,
         unblocking=True,
         implicit_unlock=True,
-        action_kinds=['goto', 'pickup', 'open', 'putnext'],
-        instr_kinds=['action', 'and', 'seq'],
-        seed=None
+        action_kinds=["goto", "pickup", "open", "putnext"],
+        instr_kinds=["action", "and", "seq"],
+        seed=None,
     ):
         self.num_dists = num_dists
         self.locked_room_prob = locked_room_prob
@@ -284,10 +284,7 @@ class LevelGen(RoomGridLevel):
         self.locked_room = None
 
         super().__init__(
-            room_size=room_size,
-            num_rows=num_rows,
-            num_cols=num_cols,
-            seed=seed
+            room_size=room_size, num_rows=num_rows, num_cols=num_cols, seed=seed
         )
 
     def gen_mission(self):
@@ -314,8 +311,7 @@ class LevelGen(RoomGridLevel):
 
         # Generate random instructions
         self.instrs = self.rand_instr(
-            action_kinds=self.action_kinds,
-            instr_kinds=self.instr_kinds
+            action_kinds=self.action_kinds, instr_kinds=self.instr_kinds
         )
 
     def add_locked_room(self):
@@ -330,11 +326,7 @@ class LevelGen(RoomGridLevel):
             if self.locked_room.neighbors[door_idx] is None:
                 continue
 
-            door, _ = self.add_door(
-                i, j,
-                door_idx,
-                locked=True
-            )
+            door, _ = self.add_door(i, j, door_idx, locked=True)
 
             # Done adding locked room
             break
@@ -348,7 +340,7 @@ class LevelGen(RoomGridLevel):
             if key_room is self.locked_room:
                 continue
 
-            self.add_object(i, j, 'key', door.color)
+            self.add_object(i, j, "key", door.color)
             break
 
     def rand_obj(self, types=OBJ_TYPES, colors=COLOR_NAMES, max_tries=100):
@@ -361,7 +353,7 @@ class LevelGen(RoomGridLevel):
         # Keep trying until we find a matching object
         while True:
             if num_tries > max_tries:
-                raise RecursionError('failed to find suitable object')
+                raise RecursionError("failed to find suitable object")
             num_tries += 1
 
             color = self._rand_elem([None, *colors])
@@ -383,10 +375,9 @@ class LevelGen(RoomGridLevel):
             # If no implicit unlocking is required
             if not self.implicit_unlock and self.locked_room:
                 # Check that at least one object is not in the locked room
-                pos_not_locked = list(filter(
-                    lambda p: not self.locked_room.pos_inside(*p),
-                    poss
-                ))
+                pos_not_locked = list(
+                    filter(lambda p: not self.locked_room.pos_inside(*p), poss)
+                )
 
                 if len(pos_not_locked) == 0:
                     continue
@@ -394,65 +385,55 @@ class LevelGen(RoomGridLevel):
             # Found a valid object description
             return desc
 
-    def rand_instr(
-        self,
-        action_kinds,
-        instr_kinds,
-        depth=0
-    ):
+    def rand_instr(self, action_kinds, instr_kinds, depth=0):
         """
         Generate random instructions
         """
 
         kind = self._rand_elem(instr_kinds)
 
-        if kind == 'action':
+        if kind == "action":
             action = self._rand_elem(action_kinds)
 
-            if action == 'goto':
+            if action == "goto":
                 return GoToInstr(self.rand_obj())
-            elif action == 'pickup':
+            elif action == "pickup":
                 return PickupInstr(self.rand_obj(types=OBJ_TYPES_NOT_DOOR))
-            elif action == 'open':
-                return OpenInstr(self.rand_obj(types=['door']))
-            elif action == 'putnext':
+            elif action == "open":
+                return OpenInstr(self.rand_obj(types=["door"]))
+            elif action == "putnext":
                 return PutNextInstr(
-                    self.rand_obj(types=OBJ_TYPES_NOT_DOOR),
-                    self.rand_obj()
+                    self.rand_obj(types=OBJ_TYPES_NOT_DOOR), self.rand_obj()
                 )
 
             assert False
 
-        elif kind == 'and':
+        elif kind == "and":
             instr_a = self.rand_instr(
-                action_kinds=action_kinds,
-                instr_kinds=['action'],
-                depth=depth+1
+                action_kinds=action_kinds, instr_kinds=["action"], depth=depth + 1
             )
             instr_b = self.rand_instr(
-                action_kinds=action_kinds,
-                instr_kinds=['action'],
-                depth=depth+1
+                action_kinds=action_kinds, instr_kinds=["action"], depth=depth + 1
             )
             return AndInstr(instr_a, instr_b)
 
-        elif kind == 'seq':
+        elif kind == "seq":
             instr_a = self.rand_instr(
                 action_kinds=action_kinds,
-                instr_kinds=['action', 'and'],
-                depth=depth+1
+                instr_kinds=["action", "and"],
+                depth=depth + 1,
             )
             instr_b = self.rand_instr(
                 action_kinds=action_kinds,
-                instr_kinds=['action', 'and'],
-                depth=depth+1
+                instr_kinds=["action", "and"],
+                depth=depth + 1,
             )
 
-            kind = self._rand_elem(['before', 'after'])
+            kind = self._rand_elem(["before", "after"])
 
-            if kind == 'before':
+            if kind == "before":
                 return BeforeInstr(instr_a, instr_b)
-            elif kind == 'after':
+            elif kind == "after":
                 return AfterInstr(instr_a, instr_b)
 
             assert False
@@ -471,15 +452,15 @@ def register_levels(module_name, globals):
 
     # Iterate through global names
     for global_name in sorted(list(globals.keys())):
-        if not global_name.startswith('Level_'):
+        if not global_name.startswith("Level_"):
             continue
 
-        level_name = global_name.split('Level_')[-1]
+        level_name = global_name.split("Level_")[-1]
         level_class = globals[global_name]
 
         # Register the levels with OpenAI Gym
-        gym_id = 'BabyAI-%s-v0' % (level_name)
-        entry_point = '%s:%s' % (module_name, global_name)
+        gym_id = "BabyAI-%s-v0" % (level_name)
+        entry_point = "%s:%s" % (module_name, global_name)
         gym.envs.registration.register(
             id=gym_id,
             entry_point=entry_point,
@@ -495,7 +476,7 @@ def register_levels(module_name, globals):
 
 def test():
     for idx, level_name in enumerate(level_dict.keys()):
-        print('Level %s (%d/%d)' % (level_name, idx+1, len(level_dict)))
+        print("Level %s (%d/%d)" % (level_name, idx + 1, len(level_dict)))
 
         level = level_dict[level_name]
 
@@ -509,13 +490,14 @@ def test():
             assert isinstance(mission.surface, str)
             assert len(mission.surface) > 0
             obs = mission.reset()
-            assert obs['mission'] == mission.surface
+            assert obs["mission"] == mission.surface
 
             # Reduce max_steps because otherwise tests take too long
             mission.max_steps = min(mission.max_steps, 200)
 
             # Check for some known invalid patterns in the surface form
             import re
+
             surface = mission.surface
             assert not re.match(r".*pick up the [^ ]*door.*", surface), surface
 
@@ -537,5 +519,5 @@ def test():
         assert m0.surface == m1.surface
 
     # Check that gym environment names were registered correctly
-    gym.make('BabyAI-1RoomS8-v0')
-    gym.make('BabyAI-BossLevel-v0')
+    gym.make("BabyAI-1RoomS8-v0")
+    gym.make("BabyAI-BossLevel-v0")
