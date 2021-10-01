@@ -838,6 +838,23 @@ class Level_PresetMazeGoPutPick(Level_PresetMaze):
 
         self.instrs = TripleAndInstr(self.instr_a, self.instr_b, self.instr_c)
 
+class Level_PresetMazeGoTripleSeq(Level_PresetMaze):
+
+    def gen_mission(self):
+
+        self.place_agent(1, 1)
+        dists = self.add_distractors()
+        self.connect_all()
+        self.open_all_doors()
+        self.check_objs_reachable()
+
+        self.instr_a = GoToInstr(ObjDesc('box', 'purple'))
+        self.instr_b = GoToInstr(ObjDesc('key', 'red'))
+        self.instr_c = GoToInstr(ObjDesc('box','red'))
+
+        self.instrs = TripleAndInstr(self.instr_a, self.instr_b, self.instr_c)
+
+
 class Level_PresetMazeGoTo(Level_PresetMaze):
 
     def gen_mission(self):
