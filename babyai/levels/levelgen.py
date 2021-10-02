@@ -56,7 +56,9 @@ class RoomGridLevel(RoomGrid):
             elif status == "failure":
                 done = True
                 reward = 0
-
+            elif status == 'partial': #Dense reward
+                done = False
+                reward = 0.5 * self._reward()
         return obs, reward, done, info
 
     def update_objs_poss(self, instr=None):

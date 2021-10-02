@@ -422,9 +422,12 @@ class SeqInstr(Instr):
     Base class for sequencing instructions (before, after, and)
     """
 
-    def __init__(self, instr_a, instr_b, strict=False):
+    def __init__(self, instr_a, instr_b, instr_c=None, strict=False):
         assert isinstance(instr_a, ActionInstr) or isinstance(instr_a, AndInstr)
         assert isinstance(instr_b, ActionInstr) or isinstance(instr_b, AndInstr)
+        if instr_c is not None:
+            assert isinstance(instr_c, ActionInstr) or isinstance(instr_c, AndInstr)
+            self.instr_c = instr_c
         self.instr_a = instr_a
         self.instr_b = instr_b
         self.strict = strict
@@ -546,5 +549,65 @@ class AndInstr(SeqInstr):
 
         if self.a_done == 'success' and self.b_done == 'success':
             return 'success'
+
+        return 'continue'
+
+class TripleAndInstr(SeqInstr):
+    """
+    Composition of three instructions, can be completed in any order
+    e.g. go to the red door and pick up the blue ball and put the yellow key next to the purple box
+    """
+
+    def __init__(self, instr_a, instr_b, instr_c, strict=False):
+        assert isinstance(instr_a, ActionInstr)
+        assert isinstance(instr_b, ActionInstr)
+        assert isinstance(instr_c, ActionInstr)
+        super().__init__(instr_a, instr_b, instr_c=instr_c, strict=strict)
+
+    def surface(self, env):
+        return self.instr_a.surface(env) + ' and ' + self.instr_b.surface(env) + ' and ' + self.instr_c.surface(env)
+
+    def reset_verifier(self, env):
+        super().reset_verifier(env)
+        self.instr_a.reset_verifier(env)
+        self.instr_b.reset_verifier(env)
+        self.instr_c.reset_verifier(env)
+        self.a_done = False
+        self.b_done = False
+        self.c_done = False
+        self.a_reward = False
+        self.b_reward = False
+        self.c_reward = False
+
+    def verify(self, action, partial=False):
+        if self.a_done != 'success':
+            self.a_done = self.instr_a.verify(action)
+
+        if self.b_done != 'success':
+            self.b_done = self.instr_b.verify(action)
+
+        if self.c_done != 'success':
+            self.c_done = self.instr_c.verify(action)
+
+        if use_done_actions and action is self.env.actions.done:
+            if self.a_done == 'failure' and self.b_done == 'failure' and self.c_done == 'failure':
+                return 'failure'
+
+        if self.a_done == 'success' and self.b_done == 'success' and self.c_done == 'success':
+            return 'success'
+        
+        #Partial Reward
+        if partial:
+            if self.a_done == 'success' and not self.a_reward:
+                self.a_reward = True
+                return 'partial'
+            
+            if self.b_done == 'success' and not self.b_reward:
+                self.b_reward = True
+                return 'partial'
+
+            if self.c_done == 'success' and not self.c_reward:
+                self.c_reward = True
+                return 'partial'
 
         return 'continue'
