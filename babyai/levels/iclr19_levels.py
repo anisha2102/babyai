@@ -823,6 +823,7 @@ class Level_PresetMazeGoToSeq(Level_PresetMaze):
         instr_b = GoToInstr(ObjDesc(o2.type, o2.color))
         self.instrs = AndInstr(instr_a, instr_b)
 
+
 class Level_PutNextOpen(Level_SynthSeq):
     """
     Custom SynthSeq level:
