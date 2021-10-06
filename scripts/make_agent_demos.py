@@ -147,6 +147,56 @@ def breakdown_verifiers(env, verifier):
     return verifier
 
 
+def get_single_one_hot(env, verifier, desc):
+    color, obj_type, loc = (
+        desc.color,
+        desc.type,
+        desc.loc,
+    )
+
+    if color is None or obj_type is None:
+        raise NotImplementedError
+
+    obj_desc = [color, obj_type, loc]
+
+    color_one_hot = np.zeros(len(COLOR_NAMES))
+    color_one_hot[color_indx_map[color]] = 1
+
+    obj_type_one_hot = np.zeros(len(OBJ_TYPES))
+    obj_type_one_hot[obj_type_indx_map[obj_type]] = 1
+
+    action = verifier.surface(env).split(" ")[0]
+    action_one_hot = np.zeros(len(ACTION_TYPES))
+    action_one_hot[action_indx_map[action.lower()]] = 1
+
+    return color_one_hot, obj_type_one_hot, action_one_hot, obj_desc
+
+
+def get_one_hot_attributes(env, verifiers):
+    obj_descs = []
+    colors_oh, obj_types_oh, actions_oh = [], [], []
+
+    for verifier in verifiers:
+
+        if isinstance(verifier, PutNextInstr):
+            attr_1 = get_single_one_hot(env, verifier, verifier.desc_move)
+            colors_oh.append(attr_1[0])
+            obj_types_oh.append(attr_1[1])
+            actions_oh.append(attr_1[2])
+
+            attr_2 = get_single_one_hot(env, verifier, verifier.desc_fixed)
+            colors_oh.append(attr_2[0])
+            obj_types_oh.append(attr_2[1])
+            actions_oh.append(attr_2[2])
+        else:
+            attr = get_single_one_hot(env, verifier, verifier.desc)
+            colors_oh.append(attr[0])
+            obj_types_oh.append(attr[1])
+            actions_oh.append(attr[2])
+
+    return np.array(colors_oh), np.array(obj_types_oh), np.array(actions_oh), obj_descs
+
+
 def generate_demos(n_episodes, valid, seed, shift=0):
     utils.seed(seed)
 
@@ -181,21 +231,6 @@ def generate_demos(n_episodes, valid, seed, shift=0):
 
         actions = []
         mission = obs["mission"]
-        # color, obj_type, loc = (
-        #     env.instrs.desc.color,
-        #     env.instrs.desc.type,
-        #     env.instrs.desc.loc,
-        # )
-        # obj_desc = [color, obj_type, loc]
-        # color_one_hot = np.zeros(len(COLOR_NAMES))
-        # color_one_hot[color_indx_map[color]] = 1
-
-        # obj_type_one_hot = np.zeros(len(OBJ_TYPES))
-        # obj_type_one_hot[obj_type_indx_map[obj_type]] = 1
-
-        # action = mission.split(" ")[0]
-        # action_one_hot = np.zeros(len(ACTION_TYPES))
-        # action_one_hot[action_indx_map[action.lower()]] = 1
 
         images = []
         directions = []
@@ -205,10 +240,18 @@ def generate_demos(n_episodes, valid, seed, shift=0):
         if type(verifiers) != list:
             verifiers = [verifiers]
 
+        (
+            color_one_hot,
+            obj_type_one_hot,
+            action_one_hot,
+            obj_descs,
+        ) = get_one_hot_attributes(env, verifiers)
+
         subtasks = [verifier.surface(env) for verifier in verifiers]
         subtask_complete = []
 
-        overall_mission = env.instrs
+        overall_mission = copy.deepcopy(env.instrs)
+        overall_mission.reset_verifier(env)
 
         try:
             while not done:
@@ -218,15 +261,14 @@ def generate_demos(n_episodes, valid, seed, shift=0):
 
                 new_obs, reward, done, _ = env.step(action, verify=False)
 
+                tmp = [0 for _ in range(len(verifiers))]
                 for i, verifier in enumerate(verifiers):
-                    tmp = [0 for _ in range(len(verifiers))]
                     status = verifier.verify(action)
                     if status == "success":
                         tmp[i] = 1
                     else:
                         tmp[i] = 0
-
-                    subtask_complete.append(tmp)
+                subtask_complete.append(tmp)
 
                 status = overall_mission.verify(action)
 
@@ -264,10 +306,10 @@ def generate_demos(n_episodes, valid, seed, shift=0):
                         actions,
                         np.array(subtask_complete),
                         subtasks,
-                        obj_desc,
-                        action_one_hot,
-                        obj_type_one_hot,
                         color_one_hot,
+                        obj_type_one_hot,
+                        action_one_hot,
+                        obj_descs,
                     )
                 )
                 just_crashed = False
