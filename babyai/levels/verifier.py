@@ -4,17 +4,17 @@ from enum import Enum
 from gym_minigrid.minigrid import COLOR_NAMES, DIR_TO_VEC
 
 # Object types we are allowed to describe in language
-OBJ_TYPES = ['box', 'ball', 'key', 'door']
+OBJ_TYPES = ["box", "ball", "key", "door"]
 
 # Object types we are allowed to describe in language
-OBJ_TYPES_NOT_DOOR = list(filter(lambda t: t != 'door', OBJ_TYPES))
+OBJ_TYPES_NOT_DOOR = list(filter(lambda t: t != "door", OBJ_TYPES))
 
 # Locations are all relative to the agent's starting position
-LOC_NAMES = ['left', 'right', 'front', 'behind']
+LOC_NAMES = ["left", "right", "front", "behind"]
 
 # Environment flag to indicate that done actions should be
 # used by the verifier
-use_done_actions = os.environ.get('BABYAI_DONE_ACTIONS', False)
+use_done_actions = os.environ.get("BABYAI_DONE_ACTIONS", False)
 
 
 def dot_product(v1, v2):
@@ -72,24 +72,24 @@ class ObjDesc:
         if self.type:
             s = str(self.type)
         else:
-            s = 'object'
+            s = "object"
 
         if self.color:
-            s = self.color + ' ' + s
+            s = self.color + " " + s
 
         if self.loc:
-            if self.loc == 'front':
-                s = s + ' in front of you'
-            elif self.loc == 'behind':
-                s = s + ' behind you'
+            if self.loc == "front":
+                s = s + " in front of you"
+            elif self.loc == "behind":
+                s = s + " behind you"
             else:
-                s = s + ' on your ' + self.loc
+                s = s + " on your " + self.loc
 
         # Singular vs plural
         if len(self.obj_set) > 1:
-            s = 'a ' + s
+            s = "a " + s
         else:
-            s = 'the ' + s
+            s = "the " + s
 
         return s
 
@@ -148,7 +148,7 @@ class ObjDesc:
                         "left": dot_product(v, d2) < 0,
                         "right": dot_product(v, d2) > 0,
                         "front": dot_product(v, d1) > 0,
-                        "behind": dot_product(v, d1) < 0
+                        "behind": dot_product(v, d1) < 0,
                     }
 
                     if not (pos_matches[self.loc]):
@@ -196,7 +196,7 @@ class Instr:
         """
         Update the position of objects present in the instruction if needed
         """
-        potential_objects = ('desc', 'desc_move', 'desc_fixed')
+        potential_objects = ("desc", "desc_move", "desc_fixed")
         for attr in potential_objects:
             if hasattr(self, attr):
                 getattr(self, attr).find_matching_objs(self.env, use_location=False)
@@ -223,11 +223,11 @@ class ActionInstr(Instr):
 
         if action == self.env.actions.done:
             if self.lastStepMatch:
-                return 'success'
-            return 'failure'
+                return "success"
+            return "failure"
 
         res = self.verify_action(action)
-        self.lastStepMatch = (res == 'success')
+        self.lastStepMatch = res == "success"
 
     def verify_action(self):
         """
@@ -241,12 +241,12 @@ class ActionInstr(Instr):
 class OpenInstr(ActionInstr):
     def __init__(self, obj_desc, strict=False):
         super().__init__()
-        assert obj_desc.type == 'door'
+        assert obj_desc.type == "door"
         self.desc = obj_desc
         self.strict = strict
 
     def surface(self, env):
-        return 'open ' + self.desc.surface(env)
+        return "open " + self.desc.surface(env)
 
     def reset_verifier(self, env):
         super().reset_verifier(env)
@@ -257,21 +257,21 @@ class OpenInstr(ActionInstr):
     def verify_action(self, action):
         # Only verify when the toggle action is performed
         if action != self.env.actions.toggle:
-            return 'continue'
+            return "continue"
 
         # Get the contents of the cell in front of the agent
         front_cell = self.env.grid.get(*self.env.front_pos)
 
         for door in self.desc.obj_set:
             if front_cell and front_cell is door and door.is_open:
-                return 'success'
+                return "success"
 
         # If in strict mode and the wrong door is opened, failure
         if self.strict:
-            if front_cell and front_cell.type == 'door':
-                return 'failure'
+            if front_cell and front_cell.type == "door":
+                return "failure"
 
-        return 'continue'
+        return "continue"
 
 
 class GoToInstr(ActionInstr):
@@ -285,7 +285,7 @@ class GoToInstr(ActionInstr):
         self.desc = obj_desc
 
     def surface(self, env):
-        return 'go to ' + self.desc.surface(env)
+        return "go to " + self.desc.surface(env)
 
     def reset_verifier(self, env):
         super().reset_verifier(env)
@@ -298,9 +298,9 @@ class GoToInstr(ActionInstr):
         for pos in self.desc.obj_poss:
             # If the agent is next to (and facing) the object
             if np.array_equal(pos, self.env.front_pos):
-                return 'success'
+                return "success"
 
-        return 'continue'
+        return "continue"
 
 
 class PickupInstr(ActionInstr):
@@ -311,12 +311,12 @@ class PickupInstr(ActionInstr):
 
     def __init__(self, obj_desc, strict=False):
         super().__init__()
-        assert obj_desc.type != 'door'
+        assert obj_desc.type != "door"
         self.desc = obj_desc
         self.strict = strict
 
     def surface(self, env):
-        return 'pick up ' + self.desc.surface(env)
+        return "pick up " + self.desc.surface(env)
 
     def reset_verifier(self, env):
         super().reset_verifier(env)
@@ -334,20 +334,20 @@ class PickupInstr(ActionInstr):
 
         # Only verify when the pickup action is performed
         if action != self.env.actions.pickup:
-            return 'continue'
+            return "continue"
 
         for obj in self.desc.obj_set:
             if preCarrying is None and self.env.carrying is obj:
-                return 'success'
+                return "success"
 
         # If in strict mode and the wrong door object is picked up, failure
         if self.strict:
             if self.env.carrying:
-                return 'failure'
+                return "failure"
 
         self.preCarrying = self.env.carrying
 
-        return 'continue'
+        return "continue"
 
 
 class PutNextInstr(ActionInstr):
@@ -358,14 +358,19 @@ class PutNextInstr(ActionInstr):
 
     def __init__(self, obj_move, obj_fixed, strict=False):
         super().__init__()
-        assert obj_move.type != 'door'
+        assert obj_move.type != "door"
         self.desc_move = obj_move
         self.desc_fixed = obj_fixed
         self.strict = strict
         self.pickup_completed = False
 
     def surface(self, env):
-        return 'put ' + self.desc_move.surface(env) + ' next to ' + self.desc_fixed.surface(env)
+        return (
+            "put "
+            + self.desc_move.surface(env)
+            + " next to "
+            + self.desc_fixed.surface(env)
+        )
 
     def reset_verifier(self, env):
         super().reset_verifier(env)
@@ -399,17 +404,17 @@ class PutNextInstr(ActionInstr):
         # In strict mode, picking up the wrong object fails
         if self.strict:
             if action == self.env.actions.pickup and self.env.carrying:
-                return 'failure'
+                return "failure"
 
         if not self.pickup_completed:
             for obj_a in self.desc_move.obj_set:
                 if preCarrying is obj_a:
-                    self.pickup_completed =  True
-                    return 'intermediate'
+                    self.pickup_completed = True
+                    return "intermediate"
 
         # Only verify when the drop action is performed
         if action != self.env.actions.drop:
-            return 'continue'
+            return "continue"
 
         for obj_a in self.desc_move.obj_set:
             if preCarrying is not obj_a:
@@ -419,9 +424,9 @@ class PutNextInstr(ActionInstr):
 
             for pos_b in self.desc_fixed.obj_poss:
                 if pos_next_to(pos_a, pos_b):
-                    return 'success'
+                    return "success"
 
-        return 'continue'
+        return "continue"
 
 
 class SeqInstr(Instr):
@@ -447,7 +452,7 @@ class BeforeInstr(SeqInstr):
     """
 
     def surface(self, env):
-        return self.instr_a.surface(env) + ', then ' + self.instr_b.surface(env)
+        return self.instr_a.surface(env) + ", then " + self.instr_b.surface(env)
 
     def reset_verifier(self, env):
         super().reset_verifier(env)
@@ -457,28 +462,28 @@ class BeforeInstr(SeqInstr):
         self.b_done = False
 
     def verify(self, action):
-        if self.a_done == 'success':
+        if self.a_done == "success":
             self.b_done = self.instr_b.verify(action)
 
-            if self.b_done == 'failure':
-                return 'failure'
+            if self.b_done == "failure":
+                return "failure"
 
-            if self.b_done == 'success':
-                return 'success'
+            if self.b_done == "success":
+                return "success"
         else:
             self.a_done = self.instr_a.verify(action)
-            if self.a_done == 'failure':
-                return 'failure'
+            if self.a_done == "failure":
+                return "failure"
 
-            if self.a_done == 'success':
+            if self.a_done == "success":
                 return self.verify(action)
 
             # In strict mode, completing b first means failure
             if self.strict:
-                if self.instr_b.verify(action) == 'success':
-                    return 'failure'
+                if self.instr_b.verify(action) == "success":
+                    return "failure"
 
-        return 'continue'
+        return "continue"
 
 
 class AfterInstr(SeqInstr):
@@ -488,7 +493,7 @@ class AfterInstr(SeqInstr):
     """
 
     def surface(self, env):
-        return self.instr_a.surface(env) + ' after you ' + self.instr_b.surface(env)
+        return self.instr_a.surface(env) + " after you " + self.instr_b.surface(env)
 
     def reset_verifier(self, env):
         super().reset_verifier(env)
@@ -498,28 +503,28 @@ class AfterInstr(SeqInstr):
         self.b_done = False
 
     def verify(self, action):
-        if self.b_done == 'success':
+        if self.b_done == "success":
             self.a_done = self.instr_a.verify(action)
 
-            if self.a_done == 'success':
-                return 'success'
+            if self.a_done == "success":
+                return "success"
 
-            if self.a_done == 'failure':
-                return 'failure'
+            if self.a_done == "failure":
+                return "failure"
         else:
             self.b_done = self.instr_b.verify(action)
-            if self.b_done == 'failure':
-                return 'failure'
+            if self.b_done == "failure":
+                return "failure"
 
-            if self.b_done == 'success':
+            if self.b_done == "success":
                 return self.verify(action)
 
             # In strict mode, completing a first means failure
             if self.strict:
-                if self.instr_a.verify(action) == 'success':
-                    return 'failure'
+                if self.instr_a.verify(action) == "success":
+                    return "failure"
 
-        return 'continue'
+        return "continue"
 
 
 class AndInstr(SeqInstr):
@@ -534,7 +539,7 @@ class AndInstr(SeqInstr):
         super().__init__(instr_a, instr_b, None, strict)
 
     def surface(self, env):
-        return self.instr_a.surface(env) + ' and ' + self.instr_b.surface(env)
+        return self.instr_a.surface(env) + " and " + self.instr_b.surface(env)
 
     def reset_verifier(self, env):
         super().reset_verifier(env)
@@ -546,29 +551,30 @@ class AndInstr(SeqInstr):
         self.b_reward = False
 
     def verify(self, action):
-        if self.a_done != 'success':
+        if self.a_done != "success":
             self.a_done = self.instr_a.verify(action)
 
-        if self.b_done != 'success':
+        if self.b_done != "success":
             self.b_done = self.instr_b.verify(action)
 
         if use_done_actions and action is self.env.actions.done:
-            if self.a_done == 'failure' and self.b_done == 'failure':
-                return 'failure'
+            if self.a_done == "failure" and self.b_done == "failure":
+                return "failure"
 
-        if self.a_done == 'success' and self.b_done == 'success':
-            return 'success'
+        if self.a_done == "success" and self.b_done == "success":
+            return "success"
 
-        #Partial Reward
-        if self.a_done in 'success' and not self.a_reward:
+        # Partial Reward
+        if self.a_done in "success" and not self.a_reward:
             self.a_reward = True
-            return 'partial'
+            return "partial"
 
-        if self.b_done == 'success' and not self.b_reward:
+        if self.b_done == "success" and not self.b_reward:
             self.b_reward = True
-            return 'partial'
+            return "partial"
 
-        return 'continue'
+        return "continue"
+
 
 class TripleAndInstr(SeqInstr):
     """
@@ -583,7 +589,13 @@ class TripleAndInstr(SeqInstr):
         super().__init__(instr_a, instr_b, instr_c=instr_c, strict=strict)
 
     def surface(self, env):
-        return self.instr_a.surface(env) + ' and ' + self.instr_b.surface(env) + ' and ' + self.instr_c.surface(env)
+        return (
+            self.instr_a.surface(env)
+            + " and "
+            + self.instr_b.surface(env)
+            + " and "
+            + self.instr_c.surface(env)
+        )
 
     def reset_verifier(self, env):
         super().reset_verifier(env)
@@ -601,46 +613,54 @@ class TripleAndInstr(SeqInstr):
         self.c_reward_int = False
 
     def verify(self, action):
-        if self.a_done != 'success':
+        if self.a_done != "success":
             self.a_done = self.instr_a.verify(action)
 
-        if self.b_done != 'success':
+        if self.b_done != "success":
             self.b_done = self.instr_b.verify(action)
 
-        if self.c_done != 'success':
+        if self.c_done != "success":
             self.c_done = self.instr_c.verify(action)
 
         if use_done_actions and action is self.env.actions.done:
-            if self.a_done == 'failure' and self.b_done == 'failure' and self.c_done == 'failure':
-                return 'failure'
+            if (
+                self.a_done == "failure"
+                and self.b_done == "failure"
+                and self.c_done == "failure"
+            ):
+                return "failure"
 
-        if self.a_done == 'success' and self.b_done == 'success' and self.c_done == 'success':
-            return 'success'
+        if (
+            self.a_done == "success"
+            and self.b_done == "success"
+            and self.c_done == "success"
+        ):
+            return "success"
 
-        #Intermediate Reward
-        if self.a_done == 'intermediate' and not self.a_reward_int:
+        # Intermediate Reward
+        if self.a_done == "intermediate" and not self.a_reward_int:
             self.a_reward_int = True
             return self.a_done
 
-        if self.b_done == 'intermediate' and not self.b_reward_int:
+        if self.b_done == "intermediate" and not self.b_reward_int:
             self.b_reward_int = True
             return self.b_done
 
-        if self.c_done == 'intermediate' and not self.c_reward_int:
+        if self.c_done == "intermediate" and not self.c_reward_int:
             self.c_reward_int = True
             return self.c_done
 
-        #Partial Reward
-        if self.a_done in 'success' and not self.a_reward:
+        # Partial Reward
+        if self.a_done in "success" and not self.a_reward:
             self.a_reward = True
-            return 'partial'
-        
-        if self.b_done == 'success' and not self.b_reward:
+            return "partial"
+
+        if self.b_done == "success" and not self.b_reward:
             self.b_reward = True
-            return 'partial'
+            return "partial"
 
-        if self.c_done == 'success' and not self.c_reward:
+        if self.c_done == "success" and not self.c_reward:
             self.c_reward = True
-            return 'partial'
+            return "partial"
 
-        return 'continue'
+        return "continue"
