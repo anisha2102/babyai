@@ -59,8 +59,12 @@ class RoomGridLevel(RoomGrid):
             elif status == "partial":  # Dense reward
                 done = False
                 reward = 0.5 * self._reward()
+            elif status == "intermediate":
+                done = False
+                reward = 0.25 * self._reward()
 
         info["agent_pos"] = self.agent_pos
+        status = self.instrs.verify(action)
 
         return obs, reward, done, info
 

@@ -763,6 +763,51 @@ class Level_PresetMazeGoToBlueKey(Level_PresetMaze):
 
         self.instrs = GoToInstr(ObjDesc(obj_kind, obj_color))
 
+class Level_PresetMazePutBlueKeyPurpleBox(Level_PresetMaze):
+
+    def gen_mission(self):
+        self.place_agent(1,1)
+
+        # Ensure there is only one red or blue ball
+        dists = self.add_distractors()
+
+        # Instantiates objects inside specific rooms & walls
+        blue_key, _ = self.add_object_pos('key', 'blue', 3, 10 )
+        purple_box, _ = self.add_object_pos('box', 'purple', 17, 3)
+
+        self.connect_all()
+        self.open_all_doors()
+
+        self.check_objs_reachable()
+
+        self.instrs = PutNextInstr(ObjDesc(blue_key.type, blue_key.color),
+                                ObjDesc(purple_box.type, purple_box.color))
+
+
+
+class Level_PresetMazePutPick(Level_PresetMaze):
+
+    def gen_mission(self):
+        self.place_agent(1,1)
+
+        # Ensure there is only one red or blue ball
+        dists = self.add_distractors()
+
+        # Instantiates objects inside specific rooms & walls
+        blue_key, _ = self.add_object_pos('key', 'blue', 3, 10 )
+        purple_box, _ = self.add_object_pos('box', 'purple', 17, 3)
+
+        self.connect_all()
+        self.open_all_doors()
+
+        self.check_objs_reachable()
+
+        instr_a = PutNextInstr(ObjDesc(blue_key.type, blue_key.color),
+                                ObjDesc(purple_box.type, purple_box.color))
+        instr_b = PickupInstr(ObjDesc('box','red'))
+        self.instrs = AndInstr(instr_a, instr_b)
+
+class Level_PresetMazeGoPutPick(Level_PresetMaze):
 
 class Level_PresetMazeGoPutPick(Level_PresetMaze):
     def gen_mission(self):
@@ -805,7 +850,6 @@ class Level_PresetMazeGoTo(Level_PresetMaze):
         obj = self._rand_elem(objs)
         self.open_all_doors()
         self.instrs = GoToInstr(ObjDesc(obj.type, obj.color))
-
 
 class Level_PresetMazePickup(Level_PresetMaze):
     """
