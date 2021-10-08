@@ -231,7 +231,6 @@ def generate_demos(n_episodes, valid, seed, shift=0):
 
         actions = []
         mission = obs["mission"]
-
         images = []
         directions = []
 
