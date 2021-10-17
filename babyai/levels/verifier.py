@@ -363,6 +363,7 @@ class PutNextInstr(ActionInstr):
         self.desc_fixed = obj_fixed
         self.strict = strict
         self.pickup_completed = False
+        self.same_room_as_obj_b_reward = False
 
     def surface(self, env):
         return (
@@ -412,6 +413,20 @@ class PutNextInstr(ActionInstr):
                     self.pickup_completed = True
                     return "intermediate"
 
+        # # Give extra reward for being in the same room
+        # # TODO: maybe change the reward amount
+        agent_pos = self.env.agent_pos
+        agent_room = self.env.room_from_pos(agent_pos[0], agent_pos[1])
+        if self.pickup_completed and not self.same_room_as_obj_b_reward:
+            for pos_b in self.desc_fixed.obj_poss:
+                desc_fixed_room = self.env.room_from_pos(pos_b[0], pos_b[1])
+
+                if agent_room == desc_fixed_room:
+                    self.same_room_as_obj_b_reward = True
+                    return "intermediate"
+
+        # TODO: add reward for dropping close to obj_b
+
         # Only verify when the drop action is performed
         if action != self.env.actions.drop:
             return "continue"
@@ -425,6 +440,14 @@ class PutNextInstr(ActionInstr):
             for pos_b in self.desc_fixed.obj_poss:
                 if pos_next_to(pos_a, pos_b):
                     return "success"
+                # else:
+                #     pos_a_room = self.env.room_from_pos(pos_a[0], pos_a[1])
+                #     pos_b_room = self.env.room_from_pos(pos_b[0], pos_b[1])
+                #     if pos_a_room == pos_b_room:
+                #         manhattan_distance = abs(pos_a[0] - pos_b[0]) + abs(
+                #             pos_a[1] - pos_b[1]
+                #         )
+                #         return str(1 / manhattan_distance)
 
         return "continue"
 

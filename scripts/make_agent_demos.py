@@ -28,7 +28,8 @@ import copy
 
 import babyai.utils as utils
 from gym_minigrid.minigrid import COLOR_NAMES, DIR_TO_VEC
-
+from torchvision.transforms import Resize
+from PIL import Image
 
 # Object types we are allowed to describe in language
 OBJ_TYPES = ["box", "ball", "key", "door"]
@@ -199,9 +200,20 @@ def get_one_hot_attributes(env, verifiers):
 
 def generate_demos(n_episodes, valid, seed, shift=0):
     utils.seed(seed)
+    from spirl.utils.general_utils import AttrDict
+    from spirl.rl.envs.babyai import BabyAIEnv
 
     # Generate environment
-    env = gym.make(args.env)
+    # env = gym.make(args.env)
+    env_config = AttrDict(
+        reward_norm=1.0,
+        screen_height=8,
+        screen_width=8,
+        level_name=args.env,
+    )
+    env = BabyAIEnv(env_config)
+    env._set_env_kwargs("fixed", "same_room")
+    env = env._env
 
     agent = utils.load_agent(
         env, args.model, args.demos, "agent", args.argmax, args.env
@@ -292,6 +304,9 @@ def generate_demos(n_episodes, valid, seed, shift=0):
                 actions.append(action)
                 images.append(obs["image"])
                 directions.append(obs["direction"])
+
+                if done:
+                    images.append(new_obs["image"])
 
                 obs = new_obs
             if reward > 0 and (
