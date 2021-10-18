@@ -863,9 +863,13 @@ class Level_PresetMazePutBlueKeyPurpleBox(Level_PresetMaze):
             purple_box, _ = self.add_object_pos_rand("box", "purple")
         elif task_obj_init == "same_room":
             blue_key_i, blue_key_j = self.room_from_pos(3, 10)
-            self.add_object_pos_same_room("key", "blue", blue_key_i, blue_key_j)
+            blue_key, _ = self.add_object_pos_same_room(
+                "key", "blue", blue_key_i, blue_key_j
+            )
             purple_box_i, purple_box_j = self.room_from_pos(17, 3)
-            self.add_object_pos_same_room("box", "purple", purple_box_i, purple_box_j)
+            purple_box, _ = self.add_object_pos_same_room(
+                "box", "purple", purple_box_i, purple_box_j
+            )
         elif task_obj_init == "fixed":
             blue_key, _ = self.add_object_pos("key", "blue", 3, 10)
             purple_box, _ = self.add_object_pos("box", "purple", 17, 3)

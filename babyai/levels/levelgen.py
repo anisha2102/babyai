@@ -58,6 +58,9 @@ class RoomGridLevel(RoomGrid):
         if verify:
             status = self.instrs.verify(action)
 
+            if isinstance(status, np.float):
+                done = False
+                reward = status * self._reward()
             if status == "success":
                 done = True
                 reward = self._reward()
@@ -70,12 +73,6 @@ class RoomGridLevel(RoomGrid):
             elif status == "intermediate":
                 done = False
                 reward = 0.25 * self._reward()
-            elif check_float(status):
-                done = False
-                import ipdb
-
-                ipdb.set_trace()
-                reward = float(status) * self._reward()
             elif status == "continue":
                 pass
             else:

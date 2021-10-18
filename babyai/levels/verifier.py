@@ -424,10 +424,12 @@ class PutNextInstr(ActionInstr):
                 if agent_room == desc_fixed_room:
                     self.same_room_as_obj_b_reward = True
                     return "intermediate"
+                # else:
+                #     self.same_room_as_obj_b_reward = False
 
         # TODO: add reward for dropping close to obj_b
 
-        # Only verify when the drop action is performed
+        # Only verify when the drop actione is performed
         if action != self.env.actions.drop:
             return "continue"
 
@@ -447,7 +449,7 @@ class PutNextInstr(ActionInstr):
                 #         manhattan_distance = abs(pos_a[0] - pos_b[0]) + abs(
                 #             pos_a[1] - pos_b[1]
                 #         )
-                #         return str(1 / manhattan_distance)
+                #         return 1 / manhattan_distance
 
         return "continue"
 
