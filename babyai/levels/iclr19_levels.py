@@ -678,23 +678,23 @@ class Level_PresetMaze(RoomGridLevel):
         objs = []
         # type, color, room_i, room_j, pos_x, pos_y
         objs.append(["ball", "red", 1, 1, 11, 12])
-        objs.append(["ball", "yellow", 1, 0, 9, 4])
+        objs.append(["ball", "blue", 1, 0, 9, 4])
         objs.append(["box", "red", 0, 2, 2, 16])
-        objs.append(["box", "green", 0, 1, 2, 10])
-        objs.append(["ball", "blue", 1, 0, 13, 5])
+        objs.append(["box", "blue", 0, 1, 2, 10])
+        objs.append(["ball", "yellow", 1, 0, 13, 5])
         objs.append(["key", "green", 0, 0, 4, 6])
         objs.append(["key", "grey", 2, 2, 16, 16])
         objs.append(["box", "green", 1, 1, 13, 13])
         objs.append(["key", "red", 1, 0, 12, 3])
         objs.append(["ball", "grey", 2, 0, 17, 4])
-        objs.append(["ball", "red", 0, 2, 4, 19])
+        objs.append(["ball", "green", 0, 2, 4, 19])
         objs.append(["ball", "grey", 1, 2, 10, 18])
-        objs.append(["ball", "yellow", 0, 1, 4, 9])
+        objs.append(["box", "grey", 0, 1, 4, 9])
         objs.append(["ball", "purple", 2, 2, 15, 17])
-        objs.append(["key", "red", 2, 1, 15, 11])
+        objs.append(["key", "purple", 2, 1, 15, 11])
         objs.append(["key", "yellow", 1, 0, 8, 4])
-        objs.append(["key", "green", 1, 2, 13, 16])
-        objs.append(["ball", "yellow", 2, 0, 16, 6])
+        objs.append(["key", "blue", 1, 2, 13, 16])
+        objs.append(["box", "yellow", 2, 0, 16, 6])
         objs.append(["key", "blue", 0, 1, 3, 10])
         objs.append(["box", "purple", 2, 0, 17, 3])
 
@@ -707,7 +707,6 @@ class Level_PresetMaze(RoomGridLevel):
                 continue
             dist, pos = self.add_object_pos(kind, color, pos_x, pos_y)
             dists.append(dist)
-
         return dists
 
     def add_door(
@@ -926,10 +925,22 @@ class Level_PresetMazeGoPutPick(Level_PresetMaze):
 
 
 class Level_PresetMazeGoTripleSeq(Level_PresetMaze):
-    def gen_mission(self):
+    def gen_mission(self, agent_init="same_room", task_obj_init="same_room"):
+        skip_objs = [["box","purple"], ["key","red"], ["box","red"]]
+        skip_obj_rooms = [[2,0],[2,1],[0,2]]
+        self.place_agent_start(agent_init)
+        if task_obj_init == "random":
+            dists = self.add_distractors()
+        elif task_obj_init == "same_room": 
+            #Fixed Distractors, Target Objects randomized within the same room
+            dists = self.add_distractors(skip=skip_objs)
+            for ob in range(len(skip_objs)):
+                obj_kind, obj_color = skip_objs[ob]
+                i, j = skip_obj_rooms[ob]
+                self.add_object_pos_same_room(obj_kind, obj_color, i, j)
+        elif task_obj_init == "fixed":
+            dists = self.add_distractors()
 
-        self.place_agent(1, 1)
-        dists = self.add_distractors()
         self.connect_all()
         self.open_all_doors()
         self.check_objs_reachable()
@@ -940,6 +951,32 @@ class Level_PresetMazeGoTripleSeq(Level_PresetMaze):
 
         self.instrs = TripleAndInstr(self.instr_a, self.instr_b, self.instr_c)
 
+class Level_PresetMazeGoPickGoTripleSeq(Level_PresetMaze):
+    def gen_mission(self, agent_init="same_room", task_obj_init="same_room"):
+        skip_objs = [["box","purple"], ["key","red"], ["box","red"]]
+        skip_obj_rooms = [[2,0],[2,1],[0,2]]
+        self.place_agent_start(agent_init)
+        if task_obj_init == "random":
+            dists = self.add_distractors()
+        elif task_obj_init == "same_room": 
+            #Fixed Distractors, Target Objects randomized within the same room
+            dists = self.add_distractors(skip=skip_objs)
+            for ob in range(len(skip_objs)):
+                obj_kind, obj_color = skip_objs[ob]
+                i, j = skip_obj_rooms[ob]
+                self.add_object_pos_same_room(obj_kind, obj_color, i, j)
+        elif task_obj_init == "fixed":
+            dists = self.add_distractors()
+
+        self.connect_all()
+        self.open_all_doors()
+        self.check_objs_reachable()
+
+        self.instr_a = GoToInstr(ObjDesc("box", "purple"))
+        self.instr_b = PickupInstr(ObjDesc("key", "red"))
+        self.instr_c = GoToInstr(ObjDesc("box", "red"))
+
+        self.instrs = TripleAndInstr(self.instr_a, self.instr_b, self.instr_c)
 
 class Level_PresetMazeGoTo(Level_PresetMaze):
     def gen_mission(self):
