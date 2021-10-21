@@ -91,6 +91,9 @@ class RoomGridLevel(RoomGrid):
         ):
             self.update_objs_poss(instr.instr_a)
             self.update_objs_poss(instr.instr_b)
+        elif isinstance(instr, CompositionalInstr):
+            for int in instr.instrs:
+                int.update_objs_poss()
         else:
             instr.update_objs_poss()
 
@@ -106,6 +109,14 @@ class RoomGridLevel(RoomGrid):
                     mission_kwargs["agent_init"] = self.agent_init
                 if hasattr(self, "task_obj_init"):
                     mission_kwargs["task_obj_init"] = self.task_obj_init
+                if hasattr(self, "distractor_obj_init"):
+                    mission_kwargs["distractor_obj_init"] = self.distractor_obj_init
+                if hasattr(self, "num_subtasks"):
+                    mission_kwargs["num_subtasks"] = self.num_subtasks
+                if hasattr(self, "subtasks"):
+                    mission_kwargs["subtasks"] = self.subtasks
+                if hasattr(self, "task_objs"):
+                    mission_kwargs["task_objs"] = self.task_objs
 
                 # Generate the mission
                 self.gen_mission(**mission_kwargs)
@@ -179,6 +190,11 @@ class RoomGridLevel(RoomGrid):
             self.validate_instrs(instr.instr_b)
             return
 
+        if isinstance(instr, CompositionalInstr):
+            for task in instr.instrs:
+                self.validate_instrs(task)
+            return
+
         assert False, "unhandled instruction type"
 
     def gen_mission(self):
@@ -212,6 +228,12 @@ class RoomGridLevel(RoomGrid):
             na = self.num_navs_needed(instr.instr_a)
             nb = self.num_navs_needed(instr.instr_b)
             return na + nb
+
+        if isinstance(instr, CompositionalInstr):
+            total = 0
+            for int in instr.instrs:
+                total += self.num_navs_needed(int)
+            return total
 
     def open_all_doors(self):
         """

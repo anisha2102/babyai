@@ -1025,6 +1025,11 @@ class Bot:
             self._process_instr(instr.instr_b)
             return
 
+        if isinstance(instr, CompositionalInstr):
+            for int in instr.instrs:
+                self._process_instr(int)
+            return
+
         assert False, "unknown instruction type"
 
     def _check_erroneous_box_opening(self, action):
@@ -1038,10 +1043,3 @@ class Bot:
             and self.prev_fwd_cell.type == "box"
         ):
             raise DisappearedBoxError("A box was opened. I am not sure I can help now.")
-
-
-# class OracleAgent:
-#     def __init__(self, env):
-#         self.env = env
-
-#     def find_shortest_path =
