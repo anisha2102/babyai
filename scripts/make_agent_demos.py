@@ -117,6 +117,7 @@ parser.add_argument(
 
 parser.add_argument("--agent-init", type=str, default="fixed", help="")
 parser.add_argument("--task-obj-init", type=str, default="fixed", help="")
+parser.add_argument("--distractor-obj-init", type=str, default="fixed", help="")
 
 
 args = parser.parse_args()
@@ -216,7 +217,7 @@ def generate_demos(n_episodes, valid, seed, shift=0):
         level_name=args.env,
     )
     env = BabyAIEnv(env_config)
-    env._set_env_kwargs(agent_init=args.agent_init, task_obj_init=args.task_obj_init)
+    env._set_env_kwargs(agent_init=args.agent_init, task_obj_init=args.task_obj_init, distractor_obj_init=args.distractor_obj_init)
     env = env._env
 
     agent = utils.load_agent(
