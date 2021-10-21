@@ -14,6 +14,14 @@ class RejectSampling(Exception):
     pass
 
 
+def check_float(f):
+    try:
+        float(f)
+        return True
+    except ValueError:
+        return False
+
+
 class RoomGridLevel(RoomGrid):
     """
     Base for levels based on RoomGrid
@@ -50,6 +58,9 @@ class RoomGridLevel(RoomGrid):
         if verify:
             status = self.instrs.verify(action)
 
+            if isinstance(status, np.float):
+                done = False
+                reward = status * self._reward()
             if status == "success":
                 done = True
                 reward = self._reward()
@@ -62,10 +73,12 @@ class RoomGridLevel(RoomGrid):
             elif status == "intermediate":
                 done = False
                 reward = 0.25 * self._reward()
+            elif status == "continue":
+                pass
+            else:
+                raise NotImplementedError
 
         info["agent_pos"] = self.agent_pos
-        status = self.instrs.verify(action)
-
         return obs, reward, done, info
 
     def update_objs_poss(self, instr=None):
@@ -88,8 +101,14 @@ class RoomGridLevel(RoomGrid):
             try:
                 super()._gen_grid(width, height)
 
+                mission_kwargs = {}
+                if hasattr(self, "agent_init"):
+                    mission_kwargs["agent_init"] = self.agent_init
+                if hasattr(self, "task_obj_init"):
+                    mission_kwargs["task_obj_init"] = self.task_obj_init
+
                 # Generate the mission
-                self.gen_mission()
+                self.gen_mission(**mission_kwargs)
 
                 # Validate the instructions
                 self.validate_instrs(self.instrs)
@@ -498,6 +517,7 @@ def test():
             # Check that the surface form was generated
             assert isinstance(mission.surface, str)
             assert len(mission.surface) > 0
+
             obs = mission.reset()
             assert obs["mission"] == mission.surface
 

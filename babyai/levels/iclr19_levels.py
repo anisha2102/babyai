@@ -624,7 +624,55 @@ class Level_PresetMaze(RoomGridLevel):
         self.put_obj(obj, pos_x, pos_y)
         return obj, [pos_x, pos_y]
 
-    def add_distractors(self, i=None, j=None, num_distractors=10, all_unique=True):
+    def add_object_pos_rand(self, kind, color):
+        if kind == "key":
+            obj = Key(color)
+        elif kind == "ball":
+            obj = Ball(color)
+        elif kind == "box":
+            obj = Box(color)
+        [pos_x, pos_y] = self.place_obj(obj)
+        return obj, [pos_x, pos_y]
+
+    def room_from_pos(self, x, y):
+        """Get the room a given position maps to"""
+
+        assert x >= 0
+        assert y >= 0
+
+        i = x // (self.room_size - 1)
+        j = y // (self.room_size - 1)
+
+        assert i < self.num_cols
+        assert j < self.num_rows
+
+        return i, j
+
+    def add_object_pos_same_room(self, kind, color, i, j):
+        if kind == "key":
+            obj = Key(color)
+        elif kind == "ball":
+            obj = Ball(color)
+        elif kind == "box":
+            obj = Box(color)
+        [pos_x, pos_y] = self.place_in_room(i, j, obj)
+        return obj, [pos_x, pos_y]
+
+    def place_agent_start(self, agent_init):
+        if agent_init == "random":
+            self.place_agent()
+        elif agent_init == "same_room":
+            self.place_agent(1, 1)
+        elif agent_init == "fixed":
+            self.put_obj(None, 11, 11)
+            self.agent_pos = np.array([11, 11])
+            self.agent_dir = 0
+        else:
+            raise NotImplementedError
+
+    def add_distractors(
+        self, i=None, j=None, num_distractors=10, all_unique=True, skip=[]
+    ):
         """
         Add specific objects as distractors that can potentially distract/confuse the agent.
         """
@@ -639,13 +687,13 @@ class Level_PresetMaze(RoomGridLevel):
         objs.append(["key", "green", 0, 0, 4, 6])
         objs.append(["key", "grey", 2, 2, 16, 16])
         objs.append(["box", "green", 1, 1, 13, 13])
-        objs.append(["key", "red", 1, 0, 12, 3])
+        # objs.append(["key", "red", 1, 0, 12, 3])
         objs.append(["ball", "grey", 2, 0, 17, 4])
         objs.append(["ball", "red", 0, 2, 4, 19])
         objs.append(["ball", "grey", 1, 2, 10, 18])
         objs.append(["ball", "yellow", 0, 1, 4, 9])
         objs.append(["ball", "purple", 2, 2, 15, 17])
-        objs.append(["key", "red", 2, 1, 15, 11])
+        objs.append(["key", "red", 2, 1, 21, 11])
         objs.append(["key", "yellow", 1, 0, 8, 4])
         objs.append(["key", "green", 1, 2, 13, 16])
         objs.append(["ball", "yellow", 2, 0, 16, 6])
@@ -655,6 +703,10 @@ class Level_PresetMaze(RoomGridLevel):
         dists = []
         for desc in objs:
             kind, color, room_i, room_j, pos_x, pos_y = desc
+
+            if [kind, color] in skip:
+                # print(f"Skipped: {kind} {color}")
+                continue
             dist, pos = self.add_object_pos(kind, color, pos_x, pos_y)
             dists.append(dist)
 
@@ -748,13 +800,49 @@ class Level_PresetMazePutNextOpen(Level_PresetMaze):
 
 
 class Level_PresetMazeGoToBlueKey(Level_PresetMaze):
-    def gen_mission(self):
+    def gen_mission(self, agent_init="same_room", task_obj_init="fixed"):
         obj_kind, obj_color = "key", "blue"
 
-        self.place_agent(1, 1)
+        self.place_agent_start(agent_init)
 
         # Ensure there is only one red or blue ball
-        dists = self.add_distractors()
+        if task_obj_init == "random":
+            dists = self.add_distractors(skip=[[obj_kind, obj_color]])
+            blue_key, _ = self.add_object_pos_rand(obj_kind, obj_color)
+        elif task_obj_init == "same_room":
+            dists = self.add_distractors(skip=[[obj_kind, obj_color]])
+            room_i, room_j, pos_x, pos_y = 0, 1, 3, 10
+            i, j = self.room_from_pos(pos_x, pos_y)
+            assert i == room_i and j == room_j
+            self.add_object_pos_same_room(obj_kind, obj_color, i, j)
+        elif task_obj_init == "fixed":
+            dists = self.add_distractors()
+
+        self.connect_all()
+        self.open_all_doors()
+
+        self.check_objs_reachable()
+
+        self.instrs = GoToInstr(ObjDesc(obj_kind, obj_color))
+
+
+class Level_PresetMazeGoToRedKey(Level_PresetMaze):
+    def gen_mission(self, agent_init="same_room", task_obj_init="fixed"):
+        obj_kind, obj_color = "key", "red"
+
+        self.place_agent_start(agent_init)
+
+        if task_obj_init == "random":
+            dists = self.add_distractors(skip=[[obj_kind, obj_color]])
+            blue_key, _ = self.add_object_pos_rand(obj_kind, obj_color)
+        elif task_obj_init == "same_room":
+            dists = self.add_distractors(skip=[[obj_kind, obj_color]])
+            room_i, room_j, pos_x, pos_y = 2, 1, 15, 11
+            i, j = self.room_from_pos(pos_x, pos_y)
+            assert i == room_i and j == room_j
+            self.add_object_pos_same_room(obj_kind, obj_color, i, j)
+        elif task_obj_init == "fixed":
+            dists = self.add_distractors()
 
         self.connect_all()
         self.open_all_doors()
@@ -765,15 +853,28 @@ class Level_PresetMazeGoToBlueKey(Level_PresetMaze):
 
 
 class Level_PresetMazePutBlueKeyPurpleBox(Level_PresetMaze):
-    def gen_mission(self):
-        self.place_agent(1, 1)
+    def gen_mission(self, agent_init="same_room", task_obj_init="fixed"):
+        self.place_agent_start(agent_init)
 
         # Ensure there is only one red or blue ball
         dists = self.add_distractors()
 
         # Instantiates objects inside specific rooms & walls
-        blue_key, _ = self.add_object_pos("key", "blue", 3, 10)
-        purple_box, _ = self.add_object_pos("box", "purple", 17, 3)
+        if task_obj_init == "random":
+            blue_key, _ = self.add_object_pos_rand("key", "blue")
+            purple_box, _ = self.add_object_pos_rand("box", "purple")
+        elif task_obj_init == "same_room":
+            blue_key_i, blue_key_j = self.room_from_pos(3, 10)
+            blue_key, _ = self.add_object_pos_same_room(
+                "key", "blue", blue_key_i, blue_key_j
+            )
+            purple_box_i, purple_box_j = self.room_from_pos(17, 3)
+            purple_box, _ = self.add_object_pos_same_room(
+                "box", "purple", purple_box_i, purple_box_j
+            )
+        elif task_obj_init == "fixed":
+            blue_key, _ = self.add_object_pos("key", "blue", 3, 10)
+            purple_box, _ = self.add_object_pos("box", "purple", 17, 3)
 
         self.connect_all()
         self.open_all_doors()
@@ -787,7 +888,7 @@ class Level_PresetMazePutBlueKeyPurpleBox(Level_PresetMaze):
 
 
 class Level_PresetMazePutPick(Level_PresetMaze):
-    def gen_mission(self):
+    def gen_mission(self, agent_init="same_room", task_obj_init="fixed"):
         self.place_agent(1, 1)
 
         # Ensure there is only one red or blue ball
@@ -811,7 +912,7 @@ class Level_PresetMazePutPick(Level_PresetMaze):
 
 
 class Level_PresetMazeGoPutPick(Level_PresetMaze):
-    def gen_mission(self):
+    def gen_mission(self, agent_init="same_room", task_obj_init="fixed"):
 
         self.place_agent(1, 1)
         dists = self.add_distractors()
@@ -827,9 +928,9 @@ class Level_PresetMazeGoPutPick(Level_PresetMaze):
 
 
 class Level_PresetMazeGoTripleSeq(Level_PresetMaze):
-    def gen_mission(self):
+    def gen_mission(self, agent_init="same_room", task_obj_init="fixed"):
 
-        self.place_agent(1, 1)
+        self.place_agent_start(agent_init)
         dists = self.add_distractors()
         self.connect_all()
         self.open_all_doors()
@@ -843,8 +944,8 @@ class Level_PresetMazeGoTripleSeq(Level_PresetMaze):
 
 
 class Level_PresetMazeGoTo(Level_PresetMaze):
-    def gen_mission(self):
-        self.place_agent()
+    def gen_mission(self, agent_init="same_room", task_obj_init="fixed"):
+        self.place_agent_start(agent_init)
         self.connect_all()
         objs = self.add_distractors()
         self.check_objs_reachable()
@@ -858,8 +959,8 @@ class Level_PresetMazePickup(Level_PresetMaze):
     Pick up an object in a Preset Maze, the object may be in another room.
     """
 
-    def gen_mission(self):
-        self.place_agent()
+    def gen_mission(self, agent_init="same_room", task_obj_init="fixed"):
+        self.place_agent_start(agent_init)
         self.connect_all()
         objs = self.add_distractors()
         self.check_objs_reachable()
@@ -873,8 +974,8 @@ class Level_PresetMazePutNext(Level_PresetMaze):
     Put an object next to another object. Either of these may be in another room.
     """
 
-    def gen_mission(self):
-        self.place_agent()
+    def gen_mission(self, agent_init="same_room", task_obj_init="fixed"):
+        self.place_agent_start(agent_init)
         self.connect_all()
         objs = self.add_distractors()
         self.check_objs_reachable()
@@ -890,8 +991,8 @@ class Level_PresetMazeGoToSeq(Level_PresetMaze):
     Put an object next to another object. Either of these may be in another room.
     """
 
-    def gen_mission(self):
-        self.place_agent()
+    def gen_mission(self, agent_init="same_room", task_obj_init="fixed"):
+        self.place_agent_start(agent_init)
         self.connect_all()
         objs = self.add_distractors()
         self.open_all_doors()
