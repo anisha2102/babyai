@@ -18,6 +18,8 @@ import gym
 import logging
 import sys
 import subprocess
+from subprocess import Popen
+
 import os
 import time
 import numpy as np
@@ -31,101 +33,18 @@ from gym_minigrid.minigrid import COLOR_NAMES, DIR_TO_VEC
 from torchvision.transforms import Resize
 from PIL import Image
 
-# Object types we are allowed to describe in language
-OBJ_TYPES = ["box", "ball", "key", "door"]
+from spirl.utils.general_utils import AttrDict
+from spirl.rl.envs.babyai import BabyAIEnv
+from spirl.configs.default_data_configs.babyai import *
 
-# Object types we are allowed to describe in language
-OBJ_TYPES_NOT_DOOR = list(filter(lambda t: t != "door", OBJ_TYPES))
+from torchvision.transforms import Resize
+from PIL import Image
+import matplotlib.pyplot as plt
 
-# Locations are all relative to the agent's starting position
-LOC_NAMES = ["left", "right", "front", "behind"]
-
-ACTION_TYPES = ["go", "pick", "open", "put"]
-
-# Environment flag to indicate that done actions should be
-# used by the verifier
-use_done_actions = os.environ.get("BABYAI_DONE_ACTIONS", False)
-
-obj_type_indx_map = {obj_type: indx for indx, obj_type in enumerate(OBJ_TYPES)}
-color_indx_map = {color: indx for indx, color in enumerate(COLOR_NAMES)}
-action_indx_map = {action: indx for indx, action in enumerate(ACTION_TYPES)}
 # Parse arguments
-
-parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument(
-    "--env", required=True, help="name of the environment to be run (REQUIRED)"
-)
-parser.add_argument(
-    "--model", default="BOT", help="name of the trained model (REQUIRED)"
-)
-parser.add_argument(
-    "--demos",
-    default=None,
-    help="path to save demonstrations (based on --model and --origin by default)",
-)
-parser.add_argument(
-    "--episodes",
-    type=int,
-    default=1000,
-    help="number of episodes to generate demonstrations for",
-)
-parser.add_argument(
-    "--valid-episodes",
-    type=int,
-    default=512,
-    help="number of validation episodes to generate demonstrations for",
-)
-parser.add_argument("--seed", type=int, default=0, help="start random seed")
-parser.add_argument(
-    "--argmax",
-    action="store_true",
-    default=False,
-    help="action with highest probability is selected",
-)
-parser.add_argument(
-    "--log-interval", type=int, default=100, help="interval between progress reports"
-)
-parser.add_argument(
-    "--save-interval",
-    type=int,
-    default=10000,
-    help="interval between demonstrations saving",
-)
-parser.add_argument(
-    "--filter-steps",
-    type=int,
-    default=0,
-    help="filter out demos with number of steps more than filter-steps",
-)
-parser.add_argument(
-    "--on-exception",
-    type=str,
-    default="warn",
-    choices=("warn", "crash"),
-    help="How to handle exceptions during demo generation",
-)
-
-parser.add_argument(
-    "--job-script",
-    type=str,
-    default=None,
-    help="The script that launches make_agent_demos.py at a cluster.",
-)
-parser.add_argument(
-    "--jobs", type=int, default=0, help="Split generation in that many jobs"
-)
-
-parser.add_argument("--agent-init", type=str, default="fixed", help="")
-parser.add_argument("--task-obj-init", type=str, default="fixed", help="")
-parser.add_argument("--distractor-obj-init", type=str, default="fixed", help="")
-
-
-args = parser.parse_args()
 logger = logging.getLogger(__name__)
 
 # Set seed for all randomness sources
-
-
 def print_demo_lengths(demos):
     num_frames_per_episode = [len(demo[2]) for demo in demos]
     logger.info(
@@ -135,25 +54,7 @@ def print_demo_lengths(demos):
     )
 
 
-def breakdown_verifiers(env, verifier):
-    if type(verifier) in [AndInstr, BeforeInstr, AfterInstr]:
-        a = breakdown_verifiers(env, verifier.instr_a)
-        b = breakdown_verifiers(env, verifier.instr_b)
-        if type(a) == list and type(b) == list:
-            verifiers = [*a, *b]
-        elif type(a) == list:
-            verifiers = [*a, b]
-        elif type(b) == list:
-            verifiers = [a, *b]
-        else:
-            verifiers = [a, b]
-
-        return verifiers
-
-    return verifier
-
-
-def get_single_one_hot(env, verifier, desc):
+def get_single_one_hot(desc, action):
     color, obj_type, loc = (
         desc.color,
         desc.type,
@@ -164,52 +65,40 @@ def get_single_one_hot(env, verifier, desc):
         raise NotImplementedError
 
     obj_desc = [color, obj_type, loc]
-
-    color_one_hot = np.zeros(len(COLOR_NAMES))
-    color_one_hot[color_indx_map[color]] = 1
-
-    obj_type_one_hot = np.zeros(len(OBJ_TYPES))
-    obj_type_one_hot[obj_type_indx_map[obj_type]] = 1
-
-    action = verifier.surface(env).split(" ")[0]
-    action_one_hot = np.zeros(len(ACTION_TYPES))
-    action_one_hot[action_indx_map[action.lower()]] = 1
-
-    return color_one_hot, obj_type_one_hot, action_one_hot, obj_desc
+    return (
+        color_indx_map[color],
+        obj_type_indx_map[obj_type],
+        action_indx_map[action.lower()],
+        obj_desc,
+    )
 
 
-def get_one_hot_attributes(env, verifiers):
-    obj_descs = []
-    colors_oh, obj_types_oh, actions_oh = [], [], []
+def get_attributes(env, verifiers):
+    attributes = []
 
     for verifier in verifiers:
+        action = verifier.surface(env).split(" ")[0]
 
         if isinstance(verifier, PutNextInstr):
-            attr_1 = get_single_one_hot(env, verifier, verifier.desc_move)
-            colors_oh.append(attr_1[0])
-            obj_types_oh.append(attr_1[1])
-            actions_oh.append(attr_1[2])
-
-            attr_2 = get_single_one_hot(env, verifier, verifier.desc_fixed)
-            colors_oh.append(attr_2[0])
-            obj_types_oh.append(attr_2[1])
-            actions_oh.append(attr_2[2])
+            attr_1 = get_single_one_hot(verifier.desc_move, action)
+            attr_2 = get_single_one_hot(verifier.desc_fixed, action)
+            attributes.append(attr_1)
+            attributes.append(attr_2)
         else:
-            attr = get_single_one_hot(env, verifier, verifier.desc)
-            colors_oh.append(attr[0])
-            obj_types_oh.append(attr[1])
-            actions_oh.append(attr[2])
+            attr = get_single_one_hot(verifier.desc, action)
+            attributes.append(attr)
 
-    return np.array(colors_oh), np.array(obj_types_oh), np.array(actions_oh), obj_descs
+    colors = [attr[0] for attr in attributes]
+    obj_types = [attr[1] for attr in attributes]
+    actions = [attr[2] for attr in attributes]
+    obj_descs = [attr[3] for attr in attributes]
+
+    return np.array(colors), np.array(obj_types), np.array(actions), obj_descs
 
 
 def generate_demos(n_episodes, valid, seed, shift=0):
     utils.seed(seed)
-    from spirl.utils.general_utils import AttrDict
-    from spirl.rl.envs.babyai import BabyAIEnv
-
     # Generate environment
-    # env = gym.make(args.env)
     env_config = AttrDict(
         reward_norm=1.0,
         screen_height=8,
@@ -217,7 +106,14 @@ def generate_demos(n_episodes, valid, seed, shift=0):
         level_name=args.env,
     )
     env = BabyAIEnv(env_config)
-    env._set_env_kwargs(agent_init=args.agent_init, task_obj_init=args.task_obj_init, distractor_obj_init=args.distractor_obj_init)
+    env._set_env_kwargs(
+        agent_init=args.agent_init,
+        task_obj_init=args.task_obj_init,
+        distractor_obj_init=args.distractor_obj_init,
+        num_subtasks=args.num_subtasks,
+        subtasks=args.subtasks,
+        task_objs=args.task_objs,
+    )
     env = env._env
 
     agent = utils.load_agent(
@@ -243,6 +139,7 @@ def generate_demos(n_episodes, valid, seed, shift=0):
             env.reset()
         else:
             env.seed(seed + len(demos))
+            # env.seed(seed + np.random.randint(100))
         obs = env.reset()
         agent.on_reset()
 
@@ -251,23 +148,27 @@ def generate_demos(n_episodes, valid, seed, shift=0):
         images = []
         directions = []
 
-        verifiers = breakdown_verifiers(env, env.instrs)
+        # verifiers = breakdown_verifiers(env, env.instrs)
+        # if type(verifiers) != list:
+        #     verifiers = [verifiers]
 
-        if type(verifiers) != list:
-            verifiers = [verifiers]
+        assert isinstance(env.instrs, CompositionalInstr)
 
-        (
-            color_one_hot,
-            obj_type_one_hot,
-            action_one_hot,
-            obj_descs,
-        ) = get_one_hot_attributes(env, verifiers)
+        verifiers = env.instrs.instrs
+        attributes = get_attributes(env, verifiers)
 
         subtasks = [verifier.surface(env) for verifier in verifiers]
         subtask_complete = []
 
+        print(subtasks)
+
         overall_mission = copy.deepcopy(env.instrs)
         overall_mission.reset_verifier(env)
+
+        if args.debug:
+            full_img = Resize((400, 400))(Image.fromarray(env.render(mode="rgb_array")))
+            plt.imshow(full_img)
+            plt.show()
 
         try:
             while not done:
@@ -276,15 +177,13 @@ def generate_demos(n_episodes, valid, seed, shift=0):
                     action = action.item()
 
                 new_obs, reward, done, _ = env.step(action, verify=False)
-
-                tmp = [0 for _ in range(len(verifiers))]
-                for i, verifier in enumerate(verifiers):
-                    status = verifier.verify(action)
+                subtask_status = list(overall_mission.dones.values())
+                subtask_complete = []
+                for status in subtask_status[::-1]:
                     if status == "success":
-                        tmp[i] = 1
+                        subtask_complete.append(1)
                     else:
-                        tmp[i] = 0
-                subtask_complete.append(tmp)
+                        subtask_complete.append(0)
 
                 status = overall_mission.verify(action)
 
@@ -310,8 +209,17 @@ def generate_demos(n_episodes, valid, seed, shift=0):
                 images.append(obs["image"])
                 directions.append(obs["direction"])
 
+                if args.debug:
+                    full_img = Resize((400, 400))(
+                        Image.fromarray(env.render(mode="rgb_array"))
+                    )
+                    plt.imshow(full_img)
+                    plt.show()
+
                 if done:
                     images.append(new_obs["image"])
+                    actions.append(env.Actions.done)
+                    directions.append(obs["direction"])
 
                 obs = new_obs
             if reward > 0 and (
@@ -324,11 +232,8 @@ def generate_demos(n_episodes, valid, seed, shift=0):
                         directions,
                         actions,
                         np.array(subtask_complete),
-                        subtasks,
-                        color_one_hot,
-                        obj_type_one_hot,
-                        action_one_hot,
-                        obj_descs,
+                        subtasks[::-1],
+                        *attributes,
                     )
                 )
                 just_crashed = False
@@ -359,7 +264,6 @@ def generate_demos(n_episodes, valid, seed, shift=0):
             checkpoint_time = now
 
         # Save demonstrations
-
         if (
             args.save_interval > 0
             and len(demos) < n_episodes
@@ -385,12 +289,13 @@ def generate_demos_cluster():
         os.path.realpath(demos_path + ".shard{}".format(i)) for i in range(args.jobs)
     ]
     for demo_name in job_demo_names:
-        job_demos_path = utils.get_demos_path(demo_name)
-        if os.path.exists(job_demos_path):
-            os.remove(job_demos_path)
+        if os.path.exists(demo_name):
+            os.remove(demo_name)
 
     command = [args.job_script]
     command += sys.argv[1:]
+
+    child_processes = []
     for i in range(args.jobs):
         cmd_i = list(
             map(
@@ -405,9 +310,11 @@ def generate_demos_cluster():
         )
         logger.info("LAUNCH COMMAND")
         logger.info(cmd_i)
-        output = subprocess.check_output(cmd_i)
-        logger.info("LAUNCH OUTPUT")
-        logger.info(output.decode("utf-8"))
+        p = subprocess.Popen(cmd_i)
+        child_processes.append(p)
+
+    for cp in child_processes:
+        cp.wait()
 
     job_demos = [None] * args.jobs
     while True:
@@ -417,7 +324,7 @@ def generate_demos_cluster():
                 try:
                     logger.info("Trying to load shard {}".format(i))
                     job_demos[i] = utils.load_demos(
-                        utils.get_demos_path(job_demo_names[i])
+                        utils.get_demos_path(job_demo_names[i], args.env)
                     )
                     logger.info(
                         "{} demos ready in shard {}".format(len(job_demos[i]), i)
@@ -439,13 +346,94 @@ def generate_demos_cluster():
     utils.save_demos(all_demos, demos_path)
 
 
-logging.basicConfig(level="INFO", format="%(asctime)s: %(levelname)s: %(message)s")
-logger.info(args)
-# Training demos
-if args.jobs == 0:
-    generate_demos(args.episodes, False, args.seed)
-else:
-    generate_demos_cluster()
-# Validation demos
-if args.valid_episodes:
-    generate_demos(args.valid_episodes, True, int(1e9))
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument(
+        "--env", required=True, help="name of the environment to be run (REQUIRED)"
+    )
+    parser.add_argument(
+        "--model", default="BOT", help="name of the trained model (REQUIRED)"
+    )
+    parser.add_argument(
+        "--demos",
+        default=None,
+        help="path to save demonstrations (based on --model and --origin by default)",
+    )
+    parser.add_argument(
+        "--episodes",
+        type=int,
+        default=1000,
+        help="number of episodes to generate demonstrations for",
+    )
+    parser.add_argument(
+        "--valid-episodes",
+        type=int,
+        default=512,
+        help="number of validation episodes to generate demonstrations for",
+    )
+    parser.add_argument("--seed", type=int, default=0, help="start random seed")
+    parser.add_argument(
+        "--argmax",
+        action="store_true",
+        default=False,
+        help="action with highest probability is selected",
+    )
+    parser.add_argument(
+        "--log-interval",
+        type=int,
+        default=100,
+        help="interval between progress reports",
+    )
+    parser.add_argument(
+        "--save-interval",
+        type=int,
+        default=10000,
+        help="interval between demonstrations saving",
+    )
+    parser.add_argument(
+        "--filter-steps",
+        type=int,
+        default=0,
+        help="filter out demos with number of steps more than filter-steps",
+    )
+    parser.add_argument(
+        "--on-exception",
+        type=str,
+        default="warn",
+        choices=("warn", "crash"),
+        help="How to handle exceptions during demo generation",
+    )
+
+    parser.add_argument(
+        "--job-script",
+        type=str,
+        default=None,
+        help="The script that launches make_agent_demos.py at a cluster.",
+    )
+    parser.add_argument(
+        "--jobs", type=int, default=0, help="Split generation in that many jobs"
+    )
+
+    parser.add_argument("--agent-init", type=str, default="fixed", help="")
+    parser.add_argument("--task-obj-init", type=str, default="fixed", help="")
+    parser.add_argument("--distractor-obj-init", type=str, default="fixed", help="")
+    parser.add_argument("--debug", type=int, default=0, help="")
+    parser.add_argument("--num-subtasks", type=int, default=3, help="")
+    parser.add_argument("--subtasks", type=str, default=None, nargs="+", help="")
+    parser.add_argument("--task-objs", type=str, default=None, nargs="+", help="")
+
+    args = parser.parse_args()
+
+    logging.basicConfig(level="INFO", format="%(asctime)s: %(levelname)s: %(message)s")
+    logger.info(args)
+    # Training demos
+    if args.jobs == 0:
+        generate_demos(args.episodes, False, args.seed)
+    else:
+        generate_demos_cluster()
+
+    # Validation demos
+    if args.valid_episodes:
+        generate_demos(args.valid_episodes, True, int(1e9))

@@ -1,3 +1,4 @@
+from collections import defaultdict
 import os
 import numpy as np
 from enum import Enum
@@ -687,5 +688,53 @@ class TripleAndInstr(SeqInstr):
         if self.c_done == "success" and not self.c_reward:
             self.c_reward = True
             return "partial"
+
+        return "continue"
+
+
+class CompositionalInstr(Instr):
+    def __init__(self, instrs, strict=False, sequential=True):
+        """
+        sequential (bool): must do the task in the specified order TODO
+        """
+        for instr in instrs:
+            assert isinstance(instr, ActionInstr)
+        self.instrs = instrs
+        self.strict = strict
+        self.dones = {instr: None for instr in self.instrs}  # is subtask completed
+        self.received_int_rew = {
+            instr: None for instr in self.instrs
+        }  # did agent already receive int reward for completing subtask
+
+    def surface(self, env):
+        task = " and ".join([instr.surface(env) for instr in self.instrs])
+        return task
+
+    def reset_verifier(self, env):
+        super().reset_verifier(env)
+
+        for instr in self.instrs:
+            instr.reset_verifier(env)
+
+        self.dones = {instr: None for instr in self.instrs}
+        self.received_int_rew = {instr: None for instr in self.instrs}
+
+    def verify(self, action):
+        num_success = 0
+
+        # Check if each subtask is done
+        for instr in self.instrs:
+            if self.dones[instr] != "success":
+                status = instr.verify(action)
+                self.dones[instr] = status
+                if status == "intermediate" and not self.received_int_rew[instr]:
+                    self.received_int_rew[instr] = True
+                    return status
+            else:
+                num_success += 1
+
+        # Finished all the subtasks
+        if num_success == len(self.instrs):
+            return "success"
 
         return "continue"
