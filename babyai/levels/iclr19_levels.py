@@ -757,15 +757,17 @@ class Level_PresetMaze(RoomGridLevel):
         """
         door_desc = []
         door_desc.append([2, 0, 1, 16, 7, "green"])
-        door_desc.append([2, 0, 2, 14, 6, "purple"])
-        door_desc.append([1, 1, 2, 7, 9, "green"])
+        door_desc.append([2, 0, 2, 14, 6, "blue"])
+        door_desc.append([1, 0, 2, 7, 3, "grey"])
+        door_desc.append([1, 1, 2, 7, 9, "yellow"])
         door_desc.append([1, 1, 0, 14, 12, "purple"])
         door_desc.append([1, 0, 1, 11, 7, "red"])
         door_desc.append([2, 1, 1, 16, 14, "blue"])
         door_desc.append([0, 2, 3, 2, 14, "grey"])
-        door_desc.append([1, 2, 3, 11, 14, "purple"])
-        door_desc.append([0, 1, 3, 2, 7, "red"])
+        door_desc.append([1, 2, 3, 11, 14, "green"])
+        door_desc.append([0, 1, 3, 2, 7, "purple"])
         door_desc.append([1, 2, 0, 14, 18, "yellow"])
+        door_desc.append([1, 2, 2, 7, 15, "red"])
 
         for desc in door_desc:
             i, j, idx, x, y, color = desc
@@ -988,6 +990,16 @@ class Level_PresetMazeGoTo(Level_PresetMaze):
         self.open_all_doors()
         self.instrs = GoToInstr(ObjDesc(obj.type, obj.color))
 
+class Level_PresetMazeOpen(Level_PresetMaze):
+    def gen_mission(self):
+        self.place_agent(1,1)
+        self.connect_all()
+        objs = self.add_distractors()
+        self.check_objs_reachable()
+        self.open_all_doors()
+        obj_type, obj_color = "door",  random.choice(COLOR_NAMES)
+        self.close_all_doors(color=obj_color)
+        self.instrs = OpenInstr(ObjDesc(obj_type, obj_color))
 
 class Level_PresetMazePickup(Level_PresetMaze):
     """
