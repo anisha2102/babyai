@@ -65,12 +65,17 @@ def get_single_one_hot(desc, action):
         raise NotImplementedError
 
     obj_desc = [color, obj_type, loc]
-    return (
-        color_indx_map[color],
-        obj_type_indx_map[obj_type],
-        action_indx_map[action.lower()],
-        obj_desc,
-    )
+    color_one_hot = np.zeros(len(COLOR_NAMES))
+    color_one_hot[color_indx_map[color]] = 1
+
+    obj_type_one_hot = np.zeros(len(OBJ_TYPES))
+    obj_type_one_hot[obj_type_indx_map[obj_type]] = 1
+
+    action = action.split(" ")[0]
+    action_one_hot = np.zeros(len(ACTION_TYPES))
+    action_one_hot[action_indx_map[action.lower()]] = 1
+
+    return color_one_hot, obj_type_one_hot, action_one_hot, obj_desc
 
 
 def get_attributes(env, verifiers):
@@ -159,8 +164,6 @@ def generate_demos(n_episodes, valid, seed, shift=0):
 
         subtasks = [verifier.surface(env) for verifier in verifiers]
         subtask_complete = []
-
-        print(subtasks)
 
         overall_mission = copy.deepcopy(env.instrs)
         overall_mission.reset_verifier(env)
@@ -284,7 +287,7 @@ def generate_demos(n_episodes, valid, seed, shift=0):
 
 def generate_demos_cluster():
     demos_per_job = args.episodes // args.jobs
-    demos_path = utils.get_demos_path(args.demos, args.env, "agent")
+    demos_path = utils.get_demos_path(args.demos, args.env, args.subtasks, "agent")
     job_demo_names = [
         os.path.realpath(demos_path + ".shard{}".format(i)) for i in range(args.jobs)
     ]
@@ -324,7 +327,7 @@ def generate_demos_cluster():
                 try:
                     logger.info("Trying to load shard {}".format(i))
                     job_demos[i] = utils.load_demos(
-                        utils.get_demos_path(job_demo_names[i], args.env)
+                        utils.get_demos_path(job_demo_names[i], args.env, args.subtasks)
                     )
                     logger.info(
                         "{} demos ready in shard {}".format(len(job_demos[i]), i)

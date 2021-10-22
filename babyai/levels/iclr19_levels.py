@@ -657,7 +657,7 @@ class Level_PresetMaze(RoomGridLevel):
         elif agent_init == "fixed":
             self.put_obj(None, 11, 11)
             self.agent_pos = np.array([11, 11])
-            self.agent_dir = 0
+            self.agent_dir = np.random.randint(4)
         else:
             raise NotImplementedError
 
@@ -689,13 +689,13 @@ class Level_PresetMaze(RoomGridLevel):
         objs.append(["key", "green", 0, 0, 4, 6])
         objs.append(["key", "grey", 2, 2, 16, 16])
         objs.append(["box", "green", 1, 1, 13, 13])
-        objs.append(["key", "red", 1, 0, 12, 3])
+        objs.append(["key", "red", 2, 1, 18, 11])
         objs.append(["ball", "grey", 2, 0, 17, 4])
         objs.append(["ball", "green", 0, 2, 4, 19])
         objs.append(["ball", "grey", 1, 2, 10, 18])
         objs.append(["box", "grey", 0, 1, 4, 9])
         objs.append(["ball", "purple", 2, 2, 15, 17])
-        objs.append(["key", "purple", 2, 1, 15, 11])
+        objs.append(["key", "purple", 1, 0, 12, 3])
         objs.append(["key", "yellow", 1, 0, 8, 4])
         objs.append(["key", "blue", 1, 2, 13, 16])
         objs.append(["box", "yellow", 2, 0, 16, 6])
@@ -796,7 +796,7 @@ class Level_PresetMazeCompositionalTask(Level_PresetMaze):
         self.check_objs_reachable()
 
         skills = ["go", "pickup", "put"]
-        if len(subtasks) == 0:
+        if not subtasks:
             subtasks = np.random.choice(skills, num_subtasks, replace=True).tolist()
 
         instrs = []

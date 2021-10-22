@@ -5,11 +5,14 @@ from .. import utils
 import blosc
 
 
-def get_demos_path(demos=None, env=None, origin=None, valid=False):
-    valid_suff = "_valid" if valid else ""
-    demos_path = (
-        demos + "_" + env + valid_suff if demos else env + "_" + origin + valid_suff
-    ) + ".pkl"
+def get_demos_path(demos=None, env=None, subtasks=None, origin=None, valid=False):
+    valid_stuff = "_valid" if valid else ""
+    subtasks_stuff = "_".join(subtasks) if subtasks else ""
+    if demos:
+        demos_path = f"{demos}.pkl"
+    else:
+        demos_path = f"{env}_{subtasks_stuff}{valid_stuff}.pkl"
+
     return os.path.join(utils.storage_dir(), "demos", demos_path)
 
 
