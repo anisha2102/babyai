@@ -191,6 +191,9 @@ def generate_demos(n_episodes, valid, seed, shift=0):
         try:
             if args.save_video:
                 imgs = []
+
+            subtask_completes = []
+
             while not done:
                 if args.save_video:
                     imgs.append(env.render())
@@ -206,6 +209,7 @@ def generate_demos(n_episodes, valid, seed, shift=0):
                         subtask_complete.append(1)
                     else:
                         subtask_complete.append(0)
+                subtask_completes.append(subtask_complete)
 
                 status = overall_mission.verify(action)
 
@@ -240,8 +244,8 @@ def generate_demos(n_episodes, valid, seed, shift=0):
 
                 if done:
                     images.append(new_obs["image"])
-                    imgs.append(env.render())
                     if args.save_video:
+                        imgs.append(env.render())
                         save_video(f'check{str(len(demos))}.mp4',np.array(imgs))
                     actions.append(env.Actions.done)
                     directions.append(obs["direction"])
@@ -256,7 +260,7 @@ def generate_demos(n_episodes, valid, seed, shift=0):
                         blosc.pack_array(np.array(images)),
                         directions,
                         actions,
-                        np.array(subtask_complete),
+                        np.array(subtask_completes),
                         subtasks[::-1],
                         *attributes,
                     )
@@ -309,7 +313,7 @@ def generate_demos(n_episodes, valid, seed, shift=0):
 
 def generate_demos_cluster():
     demos_per_job = args.episodes // args.jobs
-    demos_path = utils.get_demos_path(args.demos, args.env, args.subtasks, "agent")
+    demos_path = utils.get_demos_path(demos=args.demos, env=args.env, subtasks=args.subtasks, origin="agent")
     job_demo_names = [
         os.path.realpath(demos_path + ".shard{}".format(i)) for i in range(args.jobs)
     ]
