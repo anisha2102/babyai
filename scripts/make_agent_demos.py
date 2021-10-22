@@ -40,6 +40,7 @@ from spirl.configs.default_data_configs.babyai import *
 from torchvision.transforms import Resize
 from PIL import Image
 import matplotlib.pyplot as plt
+import moviepy.editor as mpy
 
 # Parse arguments
 logger = logging.getLogger(__name__)
@@ -52,6 +53,20 @@ def print_demo_lengths(demos):
             np.mean(num_frames_per_episode), np.std(num_frames_per_episode)
         )
     )
+
+def save_video(fname, frames, fps=10.):
+    outfolder = "demo_videos"
+    if not os.path.exists(outfolder):
+        os.mkdir(outfolder)
+    path = os.path.join(outfolder, fname)
+    def f(t):
+        frame_length = len(frames)
+        new_fps = 1./(1./fps + 1./frame_length)
+        idx = min(int(t*new_fps), frame_length-1)
+        return frames[idx]
+
+    video = mpy.VideoClip(f, duration=len(frames)/fps+2)
+    video.write_videofile(path, fps, verbose=False, logger=None)
 
 
 def get_single_one_hot(desc, action):
@@ -174,7 +189,11 @@ def generate_demos(n_episodes, valid, seed, shift=0):
             plt.show()
 
         try:
+            if args.save_video:
+                imgs = []
             while not done:
+                if args.save_video:
+                    imgs.append(env.render())
                 action = agent.act(obs)["action"]
                 if isinstance(action, torch.Tensor):
                     action = action.item()
@@ -221,6 +240,9 @@ def generate_demos(n_episodes, valid, seed, shift=0):
 
                 if done:
                     images.append(new_obs["image"])
+                    imgs.append(env.render())
+                    if args.save_video:
+                        save_video(f'check{str(len(demos))}.mp4',np.array(imgs))
                     actions.append(env.Actions.done)
                     directions.append(obs["direction"])
 
@@ -418,6 +440,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--jobs", type=int, default=0, help="Split generation in that many jobs"
     )
+    
 
     parser.add_argument("--agent-init", type=str, default="fixed", help="")
     parser.add_argument("--task-obj-init", type=str, default="fixed", help="")
@@ -426,6 +449,8 @@ if __name__ == "__main__":
     parser.add_argument("--num-subtasks", type=int, default=3, help="")
     parser.add_argument("--subtasks", type=str, default=None, nargs="+", help="")
     parser.add_argument("--task-objs", type=str, default=None, nargs="+", help="")
+    parser.add_argument("--save_video", action="store_true", default=False, help="Save demo videos")
+    
 
     args = parser.parse_args()
 

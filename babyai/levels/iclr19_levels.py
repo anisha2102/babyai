@@ -759,15 +759,17 @@ class Level_PresetMaze(RoomGridLevel):
         """
         door_desc = []
         door_desc.append([2, 0, 1, 16, 7, "green"])
-        door_desc.append([2, 0, 2, 14, 6, "purple"])
-        door_desc.append([1, 1, 2, 7, 9, "green"])
+        door_desc.append([2, 0, 2, 14, 6, "blue"])
+        door_desc.append([1, 0, 2, 7, 3, "grey"])
+        door_desc.append([1, 1, 2, 7, 9, "yellow"])
         door_desc.append([1, 1, 0, 14, 12, "purple"])
         door_desc.append([1, 0, 1, 11, 7, "red"])
         door_desc.append([2, 1, 1, 16, 14, "blue"])
         door_desc.append([0, 2, 3, 2, 14, "grey"])
-        door_desc.append([1, 2, 3, 11, 14, "purple"])
-        door_desc.append([0, 1, 3, 2, 7, "red"])
+        door_desc.append([1, 2, 3, 11, 14, "green"])
+        door_desc.append([0, 1, 3, 2, 7, "purple"])
         door_desc.append([1, 2, 0, 14, 18, "yellow"])
+        door_desc.append([1, 2, 2, 7, 15, "red"])
 
         for desc in door_desc:
             i, j, idx, x, y, color = desc
@@ -795,8 +797,8 @@ class Level_PresetMazeCompositionalTask(Level_PresetMaze):
         self.open_all_doors()
         self.check_objs_reachable()
 
-        skills = ["go", "pickup", "put"]
-        if not subtasks:
+        skills = ["go", "pickup", "put", "open"]
+        if subtasks is None or len(subtasks) == 0:
             subtasks = np.random.choice(skills, num_subtasks, replace=True).tolist()
 
         instrs = []
@@ -837,6 +839,11 @@ class Level_PresetMazeCompositionalTask(Level_PresetMaze):
                         o1 = self._rand_elem(objs)
                         o1_desc = ObjDesc(o1.type, o1.color)
                     instr = PutNextInstr(o1_desc, o2_desc)
+            elif subtask == "open":
+                obj_type, obj_color = "door", random.choice(COLOR_NAMES)
+                self.close_all_doors(color=obj_color)
+                o1_desc = ObjDesc(obj_type, obj_color)
+                instr = OpenInstr(o1_desc)
             else:
                 raise NotImplementedError
 

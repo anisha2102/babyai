@@ -120,7 +120,6 @@ class RoomGridLevel(RoomGrid):
 
                 # Generate the mission
                 self.gen_mission(**mission_kwargs)
-
                 # Validate the instructions
                 self.validate_instrs(self.instrs)
 
@@ -247,6 +246,22 @@ class RoomGridLevel(RoomGrid):
                 for door in room.doors:
                     if door:
                         door.is_open = True
+    
+    def close_all_doors(self, color=None):
+        """
+        Close all the doors in the maze
+        """
+
+        for i in range(self.num_cols):
+            for j in range(self.num_rows):
+                room = self.get_room(i, j)
+                for door in room.doors:
+                    if door:
+                        if color is None:
+                            door.is_open = False
+                        else:
+                            if color == door.color:
+                                door.is_open = False
 
     def check_objs_reachable(self, raise_exc=True):
         """
