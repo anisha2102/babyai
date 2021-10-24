@@ -27,6 +27,7 @@ import blosc
 import torch
 import re
 import copy
+import json
 
 import babyai.utils as utils
 from gym_minigrid.minigrid import COLOR_NAMES, DIR_TO_VEC
@@ -54,18 +55,20 @@ def print_demo_lengths(demos):
         )
     )
 
-def save_video(fname, frames, fps=10.):
+
+def save_video(fname, frames, fps=10.0):
     outfolder = "demo_videos"
     if not os.path.exists(outfolder):
         os.mkdir(outfolder)
     path = os.path.join(outfolder, fname)
+
     def f(t):
         frame_length = len(frames)
-        new_fps = 1./(1./fps + 1./frame_length)
-        idx = min(int(t*new_fps), frame_length-1)
+        new_fps = 1.0 / (1.0 / fps + 1.0 / frame_length)
+        idx = min(int(t * new_fps), frame_length - 1)
         return frames[idx]
 
-    video = mpy.VideoClip(f, duration=len(frames)/fps+2)
+    video = mpy.VideoClip(f, duration=len(frames) / fps + 2)
     video.write_videofile(path, fps, verbose=False, logger=None)
 
 
@@ -124,16 +127,13 @@ def generate_demos(n_episodes, valid, seed, shift=0):
         screen_height=8,
         screen_width=8,
         level_name=args.env,
-    )
-    env = BabyAIEnv(env_config)
-    env._set_env_kwargs(
         agent_init=args.agent_init,
         task_obj_init=args.task_obj_init,
         distractor_obj_init=args.distractor_obj_init,
-        num_subtasks=args.num_subtasks,
-        subtasks=args.subtasks,
-        task_objs=args.task_objs,
+        **preset_task_definitions["put_go_pick"],
+        maze_config_path=args.maze_config_path,
     )
+    env = BabyAIEnv(env_config)
     env = env._env
 
     agent = utils.load_agent(
@@ -246,7 +246,7 @@ def generate_demos(n_episodes, valid, seed, shift=0):
                     images.append(new_obs["image"])
                     if args.save_video:
                         imgs.append(env.render())
-                        save_video(f'check{str(len(demos))}.mp4',np.array(imgs))
+                        save_video(f"check{str(len(demos))}.mp4", np.array(imgs))
                     actions.append(env.Actions.done)
                     directions.append(obs["direction"])
 
@@ -313,7 +313,9 @@ def generate_demos(n_episodes, valid, seed, shift=0):
 
 def generate_demos_cluster():
     demos_per_job = args.episodes // args.jobs
-    demos_path = utils.get_demos_path(demos=args.demos, env=args.env, subtasks=args.subtasks, origin="agent")
+    demos_path = utils.get_demos_path(
+        demos=args.demos, env=args.env, subtasks=args.subtasks, origin="agent"
+    )
     job_demo_names = [
         os.path.realpath(demos_path + ".shard{}".format(i)) for i in range(args.jobs)
     ]
@@ -444,7 +446,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--jobs", type=int, default=0, help="Split generation in that many jobs"
     )
-    
 
     parser.add_argument("--agent-init", type=str, default="fixed", help="")
     parser.add_argument("--task-obj-init", type=str, default="fixed", help="")
@@ -453,8 +454,11 @@ if __name__ == "__main__":
     parser.add_argument("--num-subtasks", type=int, default=3, help="")
     parser.add_argument("--subtasks", type=str, default=None, nargs="+", help="")
     parser.add_argument("--task-objs", type=str, default=None, nargs="+", help="")
-    parser.add_argument("--save_video", action="store_true", default=False, help="Save demo videos")
-    
+    parser.add_argument("--sequential", type=int, default=0, help="")
+    parser.add_argument("--maze-config-path", type=str, default="", help="")
+    parser.add_argument(
+        "--save_video", action="store_true", default=False, help="Save demo videos"
+    )
 
     args = parser.parse_args()
 

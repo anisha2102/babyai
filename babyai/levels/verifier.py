@@ -602,96 +602,6 @@ class AndInstr(SeqInstr):
         return "continue"
 
 
-class TripleAndInstr(SeqInstr):
-    """
-    Composition of three instructions, can be completed in any order
-    e.g. go to the red door and pick up the blue ball and put the yellow key next to the purple box
-    """
-
-    def __init__(self, instr_a, instr_b, instr_c, strict=False):
-        assert isinstance(instr_a, ActionInstr)
-        assert isinstance(instr_b, ActionInstr)
-        assert isinstance(instr_c, ActionInstr)
-        super().__init__(instr_a, instr_b, instr_c=instr_c, strict=strict)
-
-    def surface(self, env):
-        return (
-            self.instr_a.surface(env)
-            + " and "
-            + self.instr_b.surface(env)
-            + " and "
-            + self.instr_c.surface(env)
-        )
-
-    def reset_verifier(self, env):
-        super().reset_verifier(env)
-        self.instr_a.reset_verifier(env)
-        self.instr_b.reset_verifier(env)
-        self.instr_c.reset_verifier(env)
-        self.a_done = False
-        self.b_done = False
-        self.c_done = False
-        self.a_reward = False
-        self.b_reward = False
-        self.c_reward = False
-        self.a_reward_int = False
-        self.b_reward_int = False
-        self.c_reward_int = False
-
-    def verify(self, action):
-        if self.a_done != "success":
-            self.a_done = self.instr_a.verify(action)
-
-        if self.b_done != "success":
-            self.b_done = self.instr_b.verify(action)
-
-        if self.c_done != "success":
-            self.c_done = self.instr_c.verify(action)
-
-        if use_done_actions and action is self.env.actions.done:
-            if (
-                self.a_done == "failure"
-                and self.b_done == "failure"
-                and self.c_done == "failure"
-            ):
-                return "failure"
-
-        if (
-            self.a_done == "success"
-            and self.b_done == "success"
-            and self.c_done == "success"
-        ):
-            return "success"
-
-        # Intermediate Reward
-        if self.a_done == "intermediate" and not self.a_reward_int:
-            self.a_reward_int = True
-            return self.a_done
-
-        if self.b_done == "intermediate" and not self.b_reward_int:
-            self.b_reward_int = True
-            return self.b_done
-
-        if self.c_done == "intermediate" and not self.c_reward_int:
-            self.c_reward_int = True
-            return self.c_done
-
-        # Partial Reward
-        if self.a_done in "success" and not self.a_reward:
-            self.a_reward = True
-            return "partial"
-
-        if self.b_done == "success" and not self.b_reward:
-            self.b_reward = True
-            return "partial"
-
-        if self.c_done == "success" and not self.c_reward:
-            self.c_reward = True
-            return "partial"
-
-        return "continue"
-
-
 class CompositionalInstr(Instr):
     def __init__(self, instrs, strict=False, sequential=True):
         """
@@ -701,6 +611,7 @@ class CompositionalInstr(Instr):
             assert isinstance(instr, ActionInstr)
         self.instrs = instrs
         self.strict = strict
+        self.sequential = sequential
         self.dones = {instr: None for instr in self.instrs}  # is subtask completed
         self.received_int_rew = {
             instr: None for instr in self.instrs
@@ -730,9 +641,13 @@ class CompositionalInstr(Instr):
                 if status == "intermediate" and not self.received_int_rew[instr]:
                     self.received_int_rew[instr] = True
                     return status
+
+                # Do tasks in the order they were specified
+                if self.sequential and status != "success":
+                    break
             else:
                 num_success += 1
-
+        # print(num_success)
         # Finished all the subtasks
         if num_success == len(self.instrs):
             return "success"

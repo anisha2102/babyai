@@ -104,19 +104,21 @@ class RoomGridLevel(RoomGrid):
             try:
                 super()._gen_grid(width, height)
 
-                mission_kwargs = {}
-                if hasattr(self, "agent_init"):
-                    mission_kwargs["agent_init"] = self.agent_init
-                if hasattr(self, "task_obj_init"):
-                    mission_kwargs["task_obj_init"] = self.task_obj_init
-                if hasattr(self, "distractor_obj_init"):
-                    mission_kwargs["distractor_obj_init"] = self.distractor_obj_init
-                if hasattr(self, "num_subtasks"):
-                    mission_kwargs["num_subtasks"] = self.num_subtasks
-                if hasattr(self, "subtasks"):
-                    mission_kwargs["subtasks"] = self.subtasks
-                if hasattr(self, "task_objs"):
-                    mission_kwargs["task_objs"] = self.task_objs
+                keys = [
+                    "agent_init",
+                    "task_obj_init",
+                    "distractor_obj_init",
+                    "num_subtasks",
+                    "subtasks",
+                    "task_objs",
+                    "distractor_objs",
+                    "doors",
+                    "sequential",
+                ]
+
+                mission_kwargs = dict(
+                    {k: getattr(self, k) for k in keys if hasattr(self, k)}
+                )
 
                 # Generate the mission
                 self.gen_mission(**mission_kwargs)
@@ -246,7 +248,7 @@ class RoomGridLevel(RoomGrid):
                 for door in room.doors:
                     if door:
                         door.is_open = True
-    
+
     def close_all_doors(self, color=None):
         """
         Close all the doors in the maze

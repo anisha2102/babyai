@@ -622,6 +622,8 @@ class Level_PresetMaze(RoomGridLevel):
             obj = Ball(color)
         elif kind == "box":
             obj = Box(color)
+        elif kind == "door":
+            obj = Door(color)
 
         if init == "fixed":
             self.put_obj(obj, pos_x, pos_y)
@@ -649,6 +651,27 @@ class Level_PresetMaze(RoomGridLevel):
 
         return i, j
 
+    def set_door_state(self, color=None, i=None, j=None, x=None, y=None, state=None):
+        """
+        Close all the doors in the maze
+        """
+        if x and y:
+            door = self.grid.get(x, y)
+            assert door.color == color
+            door.is_open = state
+            return
+
+        if i and j:
+            room = self.get_room(i, j)
+
+        for door in room.doors:
+            if door:
+                if color is None:
+                    door.is_open = False
+                else:
+                    if color == door.color:
+                        door.is_open = state
+
     def place_agent_start(self, agent_init):
         if agent_init == "random":
             self.place_agent()
@@ -667,43 +690,19 @@ class Level_PresetMaze(RoomGridLevel):
         dist, pos = self.add_object_pos(obj.type, obj.color, pos_x, pos_y, init)
         return dist, pos
 
-    def add_distractors(
-        self,
-        i=None,
-        j=None,
-        num_distractors=10,
-        all_unique=True,
-        init="fixed",
-    ):
+    def add_distractors(self, init="fixed", distractor_objs=[]):
         """
         Add specific objects as distractors that can potentially distract/confuse the agent.
         """
-
-        objs = []
-        # type, color, room_i, room_j, pos_x, pos_y
-        objs.append(["ball", "red", 1, 1, 11, 12])
-        objs.append(["ball", "blue", 1, 0, 9, 4])
-        objs.append(["box", "red", 0, 2, 2, 16])
-        objs.append(["box", "blue", 0, 1, 2, 10])
-        objs.append(["ball", "yellow", 1, 0, 13, 5])
-        objs.append(["key", "green", 0, 0, 4, 6])
-        objs.append(["key", "grey", 2, 2, 16, 16])
-        objs.append(["box", "green", 1, 1, 13, 13])
-        objs.append(["key", "red", 2, 1, 18, 11])
-        objs.append(["ball", "grey", 2, 0, 17, 4])
-        objs.append(["ball", "green", 0, 2, 4, 19])
-        objs.append(["ball", "grey", 1, 2, 10, 18])
-        objs.append(["box", "grey", 0, 1, 4, 9])
-        objs.append(["ball", "purple", 2, 2, 15, 17])
-        objs.append(["key", "purple", 1, 0, 12, 3])
-        objs.append(["key", "yellow", 1, 0, 8, 4])
-        objs.append(["key", "blue", 1, 2, 13, 16])
-        objs.append(["box", "yellow", 2, 0, 16, 6])
-        objs.append(["key", "blue", 0, 1, 3, 10])
-        objs.append(["box", "purple", 2, 0, 17, 3])
+        if not distractor_objs:
+            distractor_objs = [
+                ["ball", "red", 1, 1, 11, 12],
+                ["ball", "blue", 1, 0, 9, 4],
+            ]
 
         dists = []
-        for desc in objs:
+
+        for desc in distractor_objs:
             kind, color, room_i, room_j, pos_x, pos_y = desc
             dist, pos = self.add_object_pos(kind, color, pos_x, pos_y, init)
             dists.append(dist)
@@ -712,7 +711,15 @@ class Level_PresetMaze(RoomGridLevel):
         return dists
 
     def add_door(
-        self, i, j, door_idx=None, color=None, locked=None, pos_x=None, pos_y=None
+        self,
+        i,
+        j,
+        door_idx=None,
+        color=None,
+        state=None,
+        locked=None,
+        pos_x=None,
+        pos_y=None,
     ):
         """
         Add a door to a room, connecting it to a neighbor
@@ -744,7 +751,9 @@ class Level_PresetMaze(RoomGridLevel):
         else:
             pos = room.door_pos[door_idx]
         self.grid.set(*pos, door)
+        door.init_pos = pos
         door.cur_pos = pos
+        door.is_open = state
 
         neighbor = room.neighbors[door_idx]
         room.doors[door_idx] = door
@@ -752,28 +761,32 @@ class Level_PresetMaze(RoomGridLevel):
 
         return door, pos
 
-    def connect_all(self):
+    def connect_all(self, door_desc=[]):
         """
         Overrides the connect_all() method
         Connects a 3x3 maze with doors at pre-specified location
         """
-        door_desc = []
-        door_desc.append([2, 0, 1, 16, 7, "green"])
-        door_desc.append([2, 0, 2, 14, 6, "blue"])
-        door_desc.append([1, 0, 2, 7, 3, "grey"])
-        door_desc.append([1, 1, 2, 7, 9, "yellow"])
-        door_desc.append([1, 1, 0, 14, 12, "purple"])
-        door_desc.append([1, 0, 1, 11, 7, "red"])
-        door_desc.append([2, 1, 1, 16, 14, "blue"])
-        door_desc.append([0, 2, 3, 2, 14, "grey"])
-        door_desc.append([1, 2, 3, 11, 14, "green"])
-        door_desc.append([0, 1, 3, 2, 7, "purple"])
-        door_desc.append([1, 2, 0, 14, 18, "yellow"])
-        door_desc.append([1, 2, 2, 7, 15, "red"])
+        if not door_desc:
+            door_desc = [
+                ["green", 2, 0, 1, 16, 7, True],
+                ["blue", 2, 0, 2, 14, 6, True],
+                ["grey", 1, 0, 2, 7, 3, True],
+                ["yellow", 1, 1, 2, 7, 9, True],
+                ["purple", 1, 1, 0, 14, 12, True],
+                ["red", 1, 0, 1, 11, 7, True],
+                ["blue", 2, 1, 1, 16, 14, True],
+                ["grey", 0, 2, 3, 2, 14, True],
+                ["green", 1, 2, 3, 11, 14, True],
+                ["purple", 0, 1, 3, 2, 7, True],
+                ["yellow", 1, 2, 0, 14, 18, True],
+                ["red", 1, 2, 2, 7, 15, True],
+            ]
 
         for desc in door_desc:
-            i, j, idx, x, y, color = desc
-            door, pos = self.add_door(i, j, idx, color, locked=False, pos_x=x, pos_y=y)
+            color, i, j, idx, x, y, state = desc
+            door, pos = self.add_door(
+                i, j, idx, color, state, locked=False, pos_x=x, pos_y=y
+            )
 
 
 class Level_PresetMazeCompositionalTask(Level_PresetMaze):
@@ -789,12 +802,17 @@ class Level_PresetMazeCompositionalTask(Level_PresetMaze):
         num_subtasks=3,
         subtasks=[],
         task_objs=[],
+        distractor_objs=[],
+        doors=[],
+        sequential=False,
     ):
         self.place_agent_start(agent_init)
-        self.connect_all()
-        objs = self.add_distractors(init=distractor_obj_init)
+        self.connect_all(doors)
+        objs = self.add_distractors(
+            init=distractor_obj_init, distractor_objs=distractor_objs
+        )
 
-        self.open_all_doors()
+        # self.open_all_doors()
         self.check_objs_reachable()
 
         skills = ["go", "pickup", "put", "open"]
@@ -840,9 +858,12 @@ class Level_PresetMazeCompositionalTask(Level_PresetMaze):
                         o1_desc = ObjDesc(o1.type, o1.color)
                     instr = PutNextInstr(o1_desc, o2_desc)
             elif subtask == "open":
-                obj_type, obj_color = "door", random.choice(COLOR_NAMES)
-                self.close_all_doors(color=obj_color)
-                o1_desc = ObjDesc(obj_type, obj_color)
+                if o1.type != "door":
+                    obj_type, obj_color = "door", random.choice(COLOR_NAMES)
+                    o1_desc = ObjDesc(obj_type, obj_color)
+                else:
+                    # self.close_all_doors(color=obj_color)
+                    o1_desc = ObjDesc(o1.type, o1.color)
                 instr = OpenInstr(o1_desc)
             else:
                 raise NotImplementedError
@@ -856,7 +877,7 @@ class Level_PresetMazeCompositionalTask(Level_PresetMaze):
 
             instrs.append(instr)
 
-        self.instrs = CompositionalInstr(instrs)
+        self.instrs = CompositionalInstr(instrs, sequential=sequential)
 
 
 class Level_PutNextOpen(Level_SynthSeq):
