@@ -42,6 +42,7 @@ from torchvision.transforms import Resize
 from PIL import Image
 import matplotlib.pyplot as plt
 import moviepy.editor as mpy
+from pprint import pprint
 
 # Parse arguments
 logger = logging.getLogger(__name__)
@@ -130,9 +131,10 @@ def generate_demos(n_episodes, valid, seed, shift=0):
         agent_init=args.agent_init,
         task_obj_init=args.task_obj_init,
         distractor_obj_init=args.distractor_obj_init,
-        **preset_task_definitions["put_go_pick"],
+        **preset_task_definitions[args.task],
         maze_config_path=args.maze_config_path,
     )
+    pprint(env_config)
     env = BabyAIEnv(env_config)
     env = env._env
 
@@ -168,10 +170,7 @@ def generate_demos(n_episodes, valid, seed, shift=0):
         images = []
         directions = []
 
-        # verifiers = breakdown_verifiers(env, env.instrs)
-        # if type(verifiers) != list:
-        #     verifiers = [verifiers]
-
+        print(mission)
         assert isinstance(env.instrs, CompositionalInstr)
 
         verifiers = env.instrs.instrs
@@ -456,6 +455,7 @@ if __name__ == "__main__":
     parser.add_argument("--task-objs", type=str, default=None, nargs="+", help="")
     parser.add_argument("--sequential", type=int, default=0, help="")
     parser.add_argument("--maze-config-path", type=str, default="", help="")
+    parser.add_argument("--task", type=str, default="", help="")
     parser.add_argument(
         "--save_video", action="store_true", default=False, help="Save demo videos"
     )

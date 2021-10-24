@@ -820,6 +820,7 @@ class Level_PresetMazeCompositionalTask(Level_PresetMaze):
             subtasks = np.random.choice(skills, num_subtasks, replace=True).tolist()
 
         instrs = []
+
         for i, subtask in enumerate(subtasks):
             if task_objs:
                 o1_desc = ObjDesc(task_objs[1], task_objs[0])
@@ -856,7 +857,7 @@ class Level_PresetMazeCompositionalTask(Level_PresetMaze):
                     while o1_desc_prev == o1_desc:
                         o1 = self._rand_elem(objs)
                         o1_desc = ObjDesc(o1.type, o1.color)
-                    instr = PutNextInstr(o1_desc, o2_desc)
+                instr = PutNextInstr(o1_desc, o2_desc)
             elif subtask == "open":
                 if o1.type != "door":
                     obj_type, obj_color = "door", random.choice(COLOR_NAMES)
