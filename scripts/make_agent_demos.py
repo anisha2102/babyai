@@ -131,9 +131,16 @@ def generate_demos(n_episodes, valid, seed, shift=0):
         agent_init=args.agent_init,
         task_obj_init=args.task_obj_init,
         distractor_obj_init=args.distractor_obj_init,
-        **preset_task_definitions[args.task],
+        num_subtasks=args.num_subtasks,
+        subtasks=args.subtasks if "subtasks" in args else None,
+        task_objs=args.task_objs if "task_objs" in args else None,
+        sequential=args.sequential if "sequential" in args else None,
         maze_config_path=args.maze_config_path,
+        maze="preset_maze_1",
     )
+    if args.task:
+        env_config.update(**preset_task_definitions[args.task]),
+
     pprint(env_config)
     env = BabyAIEnv(env_config)
     env = env._env
