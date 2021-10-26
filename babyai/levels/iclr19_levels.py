@@ -790,7 +790,6 @@ class Level_PresetMaze(RoomGridLevel):
 
     def gen_obs(self):
         if self.agent_view_size > 8:
-            print("IN 22 section")
             grid = self.grid
             image = grid.encode()
             image[self.agent_pos[0]][self.agent_pos[1]] = np.array([
