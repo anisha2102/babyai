@@ -14,6 +14,7 @@ make_agent_demos.py at your cluster as --job-script and the number of jobs as --
 
 import argparse
 from babyai.levels.verifier import *
+from gym_minigrid.wrappers import *
 import gym
 import logging
 import sys
@@ -31,6 +32,7 @@ import json
 
 import babyai.utils as utils
 from gym_minigrid.minigrid import COLOR_NAMES, DIR_TO_VEC
+from gym_minigrid.minigrid import Grid
 from torchvision.transforms import Resize
 from PIL import Image
 
@@ -119,14 +121,35 @@ def get_attributes(env, verifiers):
 
     return np.array(colors), np.array(obj_types), np.array(actions), obj_descs
 
+def get_obs_render(obs, agent_view_size=7, agent_dir=0):
+    """
+    takes 7x7x3 obs array and renders it to corresponding RGB Image array
+    """
+    imgs = []
+    tile_size = 32
+    for i in range(1):
+        ob = np.array(obs)
+        grid, vis_mask = Grid.decode(ob, direction=agent_dir)
+        img = grid.render(
+            tile_size,
+            #agent_pos=(agent_view_size // 2, agent_view_size - 1),
+            #agent_dir=3,
+            agent_pos = None,
+            agent_dir = None,
+            highlight_mask=vis_mask,
+        )
+        imgs.append(img)
+    return np.asarray(np.array(imgs), dtype=np.uint8)
 
 def generate_demos(n_episodes, valid, seed, shift=0):
     utils.seed(seed)
     # Generate environment
     env_config = AttrDict(
         reward_norm=1.0,
-        screen_height=8,
-        screen_width=8,
+        screen_height=args.screen_sz,
+        screen_width=args.screen_sz,
+        width=args.screen_sz,
+        screen_sz=args.screen_sz,
         level_name=args.env,
         agent_init=args.agent_init,
         task_obj_init=args.task_obj_init,
@@ -141,10 +164,10 @@ def generate_demos(n_episodes, valid, seed, shift=0):
     if args.task:
         env_config.update(**preset_task_definitions[args.task]),
 
+
     pprint(env_config)
     env = BabyAIEnv(env_config)
     env = env._env
-
     agent = utils.load_agent(
         env, args.model, args.demos, "agent", args.argmax, args.env
     )
@@ -177,7 +200,7 @@ def generate_demos(n_episodes, valid, seed, shift=0):
         images = []
         directions = []
 
-        print(mission)
+        #print(mission)
         assert isinstance(env.instrs, CompositionalInstr)
 
         verifiers = env.instrs.instrs
@@ -206,8 +229,15 @@ def generate_demos(n_episodes, valid, seed, shift=0):
                 action = agent.act(obs)["action"]
                 if isinstance(action, torch.Tensor):
                     action = action.item()
-
                 new_obs, reward, done, _ = env.step(action, verify=False)
+                '''
+                #Visualize Symbolic observation to human viewable image
+                q1=get_obs_render(new_obs['image'],agent_view_size=22, agent_dir=env.agent_dir)
+                from imgcat import imgcat
+                imgcat(q1[0])
+                '''
+
+                
                 subtask_status = list(overall_mission.dones.values())
                 subtask_complete = []
                 for status in subtask_status[::-1]:
@@ -304,7 +334,7 @@ def generate_demos(n_episodes, valid, seed, shift=0):
             and len(demos) < n_episodes
             and len(demos) % args.save_interval == 0
         ):
-            logger.info("Saving demos...")
+            logger.info("Saving demos...",demos_path)
             utils.save_demos(demos, demos_path)
             logger.info("{} demos saved".format(len(demos)))
             # print statistics for the last 100 demonstrations
@@ -463,9 +493,8 @@ if __name__ == "__main__":
     parser.add_argument("--sequential", type=int, default=0, help="")
     parser.add_argument("--maze-config-path", type=str, default="", help="")
     parser.add_argument("--task", type=str, default="", help="")
-    parser.add_argument(
-        "--save_video", action="store_true", default=False, help="Save demo videos"
-    )
+    parser.add_argument("--save_video", action="store_true", default=False, help="Save demo videos")
+    parser.add_argument("--screen_sz", type=int, default=8)
 
     args = parser.parse_args()
 
