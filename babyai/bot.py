@@ -1026,7 +1026,7 @@ class Bot:
             return
 
         if isinstance(instr, CompositionalInstr):
-            for int in instr.instrs:
+            for int in instr.instrs[::-1]:
                 self._process_instr(int)
             return
 

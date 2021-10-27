@@ -125,6 +125,7 @@ def get_attributes(env, verifiers):
     obj_descs = [attr[3] for attr in attributes]
     return np.array(colors), np.array(obj_types), np.array(actions), obj_descs
 
+
 def get_obs_render(obs, agent_view_size=7, agent_dir=0):
     """
     takes 7x7x3 obs array and renders it to corresponding RGB Image array
@@ -136,14 +137,15 @@ def get_obs_render(obs, agent_view_size=7, agent_dir=0):
         grid, vis_mask = Grid.decode(ob, direction=agent_dir)
         img = grid.render(
             tile_size,
-            #agent_pos=(agent_view_size // 2, agent_view_size - 1),
-            #agent_dir=3,
-            agent_pos = None,
-            agent_dir = None,
+            # agent_pos=(agent_view_size // 2, agent_view_size - 1),
+            # agent_dir=3,
+            agent_pos=None,
+            agent_dir=None,
             highlight_mask=vis_mask,
         )
         imgs.append(img)
     return np.asarray(np.array(imgs), dtype=np.uint8)
+
 
 def generate_demos(n_episodes, valid, seed, shift=0):
     utils.seed(seed)
@@ -167,7 +169,6 @@ def generate_demos(n_episodes, valid, seed, shift=0):
     )
     if args.task:
         env_config.update(**preset_task_definitions[args.task]),
-
 
     pprint(env_config)
     env = BabyAIEnv(env_config)
@@ -201,10 +202,12 @@ def generate_demos(n_episodes, valid, seed, shift=0):
 
         actions = []
         mission = obs["mission"]
+        if args.debug:
+            print(mission)
         images = []
         directions = []
 
-        #print(mission)
+        # print(mission)
         assert isinstance(env.instrs, CompositionalInstr)
 
         verifiers = env.instrs.instrs
@@ -234,23 +237,22 @@ def generate_demos(n_episodes, valid, seed, shift=0):
                 if isinstance(action, torch.Tensor):
                     action = action.item()
                 new_obs, reward, done, _ = env.step(action, verify=False)
-                '''
+                """
                 #Visualize Symbolic observation to human viewable image
                 q1=get_obs_render(new_obs['image'],agent_view_size=22, agent_dir=env.agent_dir)
                 from imgcat import imgcat
                 imgcat(q1[0])
-                '''
+                """
 
-                
                 subtask_status = list(overall_mission.dones.values())
                 subtask_complete = []
-                for status in subtask_status[::-1]:
+                for status in subtask_status:
                     if status == "success":
                         subtask_complete.append(1)
                     else:
                         subtask_complete.append(0)
                 subtask_completes.append(subtask_complete)
-
+                # print(subtask_complete)
                 status = overall_mission.verify(action)
 
                 if status == "success":
@@ -338,7 +340,7 @@ def generate_demos(n_episodes, valid, seed, shift=0):
             and len(demos) < n_episodes
             and len(demos) % args.save_interval == 0
         ):
-            logger.info("Saving demos...",demos_path)
+            logger.info("Saving demos...", demos_path)
             utils.save_demos(demos, demos_path)
             logger.info("{} demos saved".format(len(demos)))
             # print statistics for the last 100 demonstrations
@@ -497,7 +499,9 @@ if __name__ == "__main__":
     parser.add_argument("--sequential", type=int, default=0, help="")
     parser.add_argument("--maze-config-path", type=str, default="", help="")
     parser.add_argument("--task", type=str, default="", help="")
-    parser.add_argument("--save_video", action="store_true", default=False, help="Save demo videos")
+    parser.add_argument(
+        "--save_video", action="store_true", default=False, help="Save demo videos"
+    )
     parser.add_argument("--screen_sz", type=int, default=8)
 
     args = parser.parse_args()

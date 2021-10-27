@@ -792,26 +792,22 @@ class Level_PresetMaze(RoomGridLevel):
         if self.agent_view_size > 8:
             grid = self.grid
             image = grid.encode()
-            image[self.agent_pos[0]][self.agent_pos[1]] = np.array([
-                OBJECT_TO_IDX['agent'],
-                COLOR_TO_IDX['red'],
-                self.agent_dir
-            ])
+            image[self.agent_pos[0]][self.agent_pos[1]] = np.array(
+                [OBJECT_TO_IDX["agent"], COLOR_TO_IDX["red"], self.agent_dir]
+            )
         else:
             grid, vis_mask = self.gen_obs_grid()
             # Encode the partially observable view into a numpy array
             image = grid.encode(vis_mask)
-        assert hasattr(self, 'mission'), "environments must define a textual mission string"
+        assert hasattr(
+            self, "mission"
+        ), "environments must define a textual mission string"
 
         # Observations are dictionaries containing:
         # - an image (partially observable view of the environment)
         # - the agent's direction/orientation (acting as a compass)
         # - a textual mission string (instructions for the agent)
-        obs = {
-            'image': image,
-            'direction': self.agent_dir,
-            'mission': self.mission
-        }
+        obs = {"image": image, "direction": self.agent_dir, "mission": self.mission}
 
         return obs
 
@@ -894,7 +890,7 @@ class Level_PresetMazeCompositionalTask(Level_PresetMaze):
                     # self.close_all_doors(color=obj_color)
                     o1_desc = ObjDesc(o1.type, o1.color)
                     self.close_all_doors(color=o1.color)
-                
+
                 instr = OpenInstr(o1_desc)
             else:
                 raise NotImplementedError
