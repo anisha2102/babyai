@@ -839,7 +839,7 @@ class Level_PresetMazeCompositionalTask(Level_PresetMaze):
             init=distractor_obj_init, distractor_objs=distractor_objs
         )
 
-        # self.open_all_doors()
+        self.open_all_doors()
         self.check_objs_reachable()
 
         skills = ["go", "pickup", "put", "open"]
@@ -889,9 +889,12 @@ class Level_PresetMazeCompositionalTask(Level_PresetMaze):
                 if o1.type != "door":
                     obj_type, obj_color = "door", random.choice(COLOR_NAMES)
                     o1_desc = ObjDesc(obj_type, obj_color)
+                    self.close_all_doors(color=obj_color)
                 else:
                     # self.close_all_doors(color=obj_color)
                     o1_desc = ObjDesc(o1.type, o1.color)
+                    self.close_all_doors(color=o1.color)
+                
                 instr = OpenInstr(o1_desc)
             else:
                 raise NotImplementedError
