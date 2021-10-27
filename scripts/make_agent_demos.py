@@ -84,15 +84,15 @@ def get_single_one_hot(desc, action):
         raise NotImplementedError
 
     obj_desc = [color, obj_type, loc]
-    color_one_hot = np.zeros(len(COLOR_NAMES))
-    color_one_hot[color_indx_map[color]] = 1
+    color_one_hot = np.zeros((1, len(COLOR_NAMES)))
+    color_one_hot[:, color_indx_map[color]] = 1
 
-    obj_type_one_hot = np.zeros(len(OBJ_TYPES))
-    obj_type_one_hot[obj_type_indx_map[obj_type]] = 1
+    obj_type_one_hot = np.zeros((1, len(OBJ_TYPES)))
+    obj_type_one_hot[:, obj_type_indx_map[obj_type]] = 1
 
     action = action.split(" ")[0]
-    action_one_hot = np.zeros(len(ACTION_TYPES))
-    action_one_hot[action_indx_map[action.lower()]] = 1
+    action_one_hot = np.zeros((1, len(ACTION_TYPES)))
+    action_one_hot[:, action_indx_map[action.lower()]] = 1
 
     return color_one_hot, obj_type_one_hot, action_one_hot, obj_desc
 
@@ -106,17 +106,21 @@ def get_attributes(env, verifiers):
         if isinstance(verifier, PutNextInstr):
             attr_1 = get_single_one_hot(verifier.desc_move, action)
             attr_2 = get_single_one_hot(verifier.desc_fixed, action)
-            attributes.append(attr_1)
-            attributes.append(attr_2)
+            attr = list(attr_1)
+            for i in range(len(attr_1) - 2):
+                attr[i] = np.concatenate([attr_1[i], attr_2[i]], axis=0)
+            attributes.append(attr)
         else:
             attr = get_single_one_hot(verifier.desc, action)
+            attr = list(attr)
+            for i in range(len(attr) - 2):
+                attr[i] = np.concatenate([attr[i], np.zeros_like(attr[i])], axis=0)
             attributes.append(attr)
 
     colors = [attr[0] for attr in attributes]
     obj_types = [attr[1] for attr in attributes]
     actions = [attr[2] for attr in attributes]
     obj_descs = [attr[3] for attr in attributes]
-
     return np.array(colors), np.array(obj_types), np.array(actions), obj_descs
 
 
