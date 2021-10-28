@@ -663,7 +663,10 @@ class Bot:
         best_pos = None
         best_obj = None
 
-        for i in range(len(obj_desc.obj_set)):
+        num_objs = len(obj_desc.obj_set)
+        num_failures = 0
+
+        for i in range(num_objs):
             try:
                 if obj_desc.obj_set[i] == self.mission.carrying:
                     continue
@@ -709,7 +712,14 @@ class Bot:
                 # Suppose we are tracking red keys, and we just used a red key to open a door,
                 # then for the last i, accessing obj_desc.obj_poss[i] will raise an IndexError
                 # -> Solution: Not care about that red key we used to open the door
+                num_failures += 1
                 pass
+            except:
+                num_failures += 1
+                pass
+
+        if num_failures == num_objs:
+            assert False
 
         return best_obj, best_pos
 

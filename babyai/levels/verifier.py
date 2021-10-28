@@ -630,6 +630,9 @@ class CompositionalInstr(Instr):
         self.dones = {instr: None for instr in self.instrs}
         self.received_int_rew = {instr: None for instr in self.instrs}
 
+    def num_subtasks_completed(self):
+        return sum([1 for done in self.dones.values() if done and done == "success"])
+
     def verify(self, action):
         num_success = 0
 
@@ -647,7 +650,7 @@ class CompositionalInstr(Instr):
                     break
             else:
                 num_success += 1
-        # print(num_success)
+
         # Finished all the subtasks
         if num_success == len(self.instrs):
             return "success"

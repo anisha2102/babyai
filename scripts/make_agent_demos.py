@@ -204,6 +204,7 @@ def generate_demos(n_episodes, valid, seed, shift=0):
         mission = obs["mission"]
         if args.debug:
             print(mission)
+        # print(mission, len(demos))
         images = []
         directions = []
 
@@ -218,6 +219,8 @@ def generate_demos(n_episodes, valid, seed, shift=0):
 
         overall_mission = copy.deepcopy(env.instrs)
         overall_mission.reset_verifier(env)
+
+        prev_num_subtasks_completed = 0
 
         if args.debug:
             full_img = Resize((400, 400))(Image.fromarray(env.render(mode="rgb_array")))
@@ -237,12 +240,21 @@ def generate_demos(n_episodes, valid, seed, shift=0):
                 if isinstance(action, torch.Tensor):
                     action = action.item()
                 new_obs, reward, done, _ = env.step(action, verify=False)
+
+                if args.debug:
+                    full_img = Resize((400, 400))(
+                        Image.fromarray(env.render(mode="rgb_array"))
+                    )
+                    plt.imshow(full_img)
+                    plt.show()
+
                 """
                 #Visualize Symbolic observation to human viewable image
                 q1=get_obs_render(new_obs['image'],agent_view_size=22, agent_dir=env.agent_dir)
                 from imgcat import imgcat
                 imgcat(q1[0])
                 """
+                status = overall_mission.verify(action)
 
                 subtask_status = list(overall_mission.dones.values())
                 subtask_complete = []
@@ -252,8 +264,6 @@ def generate_demos(n_episodes, valid, seed, shift=0):
                     else:
                         subtask_complete.append(0)
                 subtask_completes.append(subtask_complete)
-                # print(subtask_complete)
-                status = overall_mission.verify(action)
 
                 if status == "success":
                     done = True
@@ -277,22 +287,21 @@ def generate_demos(n_episodes, valid, seed, shift=0):
                 images.append(obs["image"])
                 directions.append(obs["direction"])
 
-                if args.debug:
-                    full_img = Resize((400, 400))(
-                        Image.fromarray(env.render(mode="rgb_array"))
-                    )
-                    plt.imshow(full_img)
-                    plt.show()
+                # Add a pause for when subtask is done
+                num_subtasks_completed = overall_mission.num_subtasks_completed()
+                if done or num_subtasks_completed != prev_num_subtasks_completed:
+                    actions.append(env.Actions.done)
+                    images.append(new_obs["image"])
+                    directions.append(new_obs["direction"])
+                    prev_num_subtasks_completed = num_subtasks_completed
 
                 if done:
-                    images.append(new_obs["image"])
                     if args.save_video:
                         imgs.append(env.render())
                         save_video(f"check{str(len(demos))}.mp4", np.array(imgs))
-                    actions.append(env.Actions.done)
-                    directions.append(obs["direction"])
 
                 obs = new_obs
+
             if reward > 0 and (
                 args.filter_steps == 0 or len(images) <= args.filter_steps
             ):
