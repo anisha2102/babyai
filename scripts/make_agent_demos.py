@@ -298,7 +298,7 @@ def generate_demos(n_episodes, valid, seed, shift=0):
                 if done:
                     if args.save_video:
                         imgs.append(env.render())
-                        save_video(f"check{str(len(demos))}.mp4", np.array(imgs))
+                        save_video("check" + str(len(demos)) + ".mp4", np.array(imgs))
 
                 obs = new_obs
 
@@ -511,7 +511,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--save_video", action="store_true", default=False, help="Save demo videos"
     )
-    parser.add_argument("--screen_sz", type=int, default=8)
+    parser.add_argument("--screen-sz", type=int, default=8)
 
     args = parser.parse_args()
 

@@ -684,11 +684,15 @@ class Level_PresetMaze(RoomGridLevel):
         else:
             raise NotImplementedError
 
-    def replace_objs(self, obj, init="fixed"):
-        pos_x, pos_y = obj.cur_pos
-        self.put_obj(None, pos_x, pos_y)
-        dist, pos = self.add_object_pos(obj.type, obj.color, pos_x, pos_y, init)
-        return dist, pos
+    def replace_objs(self, objs, init="fixed"):
+        for obj in objs:
+            if obj.type.lower() == "door": 
+                return 
+            pos_x, pos_y = obj.cur_pos
+            self.put_obj(None, pos_x, pos_y)
+            dist, pos = self.add_object_pos(obj.type, obj.color, pos_x, pos_y, init)
+            # TODO: fix the world objs list
+        return 
 
     def add_distractors(self, init="fixed", distractor_objs=[]):
         """
@@ -793,6 +797,7 @@ class Level_PresetMaze(RoomGridLevel):
         if self.agent_view_size > 8:  #Full Observability
             grid = self.grid
             image = grid.encode()
+
             image[self.agent_pos[0]][self.agent_pos[1]] = np.array(
                 [OBJECT_TO_IDX["agent"], COLOR_TO_IDX["red"], self.agent_dir]
             )
@@ -855,14 +860,10 @@ class Level_PresetMazeCompositionalTask(Level_PresetMaze):
             if task_objs:
                 o1_desc = ObjDesc(task_objs[1], task_objs[0])
                 task_objs = task_objs[2:]
-                o1_matches = o1_desc.find_matching_objs(self)
-                o1 = o1_matches[0][0]
 
                 if subtask == "put":
                     o2_desc = ObjDesc(task_objs[1], task_objs[0])
                     task_objs = task_objs[2:]
-                    o2_matches = o2_desc.find_matching_objs(self)
-                    o2 = o2_matches[0][0]
             else:
                 o1, o2 = self._rand_subset(objs, 2)
                 o1_desc = ObjDesc(o1.type, o1.color)
@@ -889,25 +890,27 @@ class Level_PresetMazeCompositionalTask(Level_PresetMaze):
                         o1_desc = ObjDesc(o1.type, o1.color)
                 instr = PutNextInstr(o1_desc, o2_desc)
             elif subtask == "open":
-                if o1.type != "door":
+                if o1_desc.type != "door":
                     obj_type, obj_color = "door", random.choice(COLOR_NAMES)
                     o1_desc = ObjDesc(obj_type, obj_color)
                     self.close_all_doors(color=obj_color)
                 else:
-                    # self.close_all_doors(color=obj_color)
-                    o1_desc = ObjDesc(o1.type, o1.color)
-                    self.close_all_doors(color=o1.color)
+                    self.close_all_doors(color=o1_desc.color)
 
                 instr = OpenInstr(o1_desc)
             else:
                 raise NotImplementedError
+            
+            # Randomize task obj positions
+            if task_obj_init != "fixed":
+                o1_matches = o1_desc.find_matching_objs(self)
 
-            if not task_objs:
                 # Remove obj from scene and randomize it
-                dist, o1 = self.replace_objs(o1, task_obj_init)
+                self.replace_objs(o1_matches[0], task_obj_init)
 
                 if subtask == "put":
-                    dist, o2 = self.replace_objs(o2, task_obj_init)
+                    o2_matches = o2_desc.find_matching_objs(self)
+                    self.replace_objs(o2_matches[0], task_obj_init)
 
             instrs.append(instr)
 
