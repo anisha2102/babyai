@@ -202,9 +202,7 @@ def generate_demos(n_episodes, valid, seed, shift=0):
 
         actions = []
         mission = obs["mission"]
-        if args.debug:
-            print(mission)
-        # print(mission, len(demos))
+
         images = []
         directions = []
 
@@ -215,6 +213,9 @@ def generate_demos(n_episodes, valid, seed, shift=0):
         attributes = get_attributes(env, verifiers)
 
         subtasks = [verifier.surface(env) for verifier in verifiers]
+        if args.debug:
+            print(mission, subtasks)
+
         subtask_complete = []
 
         overall_mission = copy.deepcopy(env.instrs)
@@ -254,6 +255,7 @@ def generate_demos(n_episodes, valid, seed, shift=0):
                 from imgcat import imgcat
                 imgcat(q1[0])
                 """
+
                 status = overall_mission.verify(action)
 
                 subtask_status = list(overall_mission.dones.values())
@@ -293,6 +295,7 @@ def generate_demos(n_episodes, valid, seed, shift=0):
                     actions.append(env.Actions.done)
                     images.append(new_obs["image"])
                     directions.append(new_obs["direction"])
+                    subtask_completes.append(subtask_complete)
                     prev_num_subtasks_completed = num_subtasks_completed
 
                 if done:
@@ -312,7 +315,7 @@ def generate_demos(n_episodes, valid, seed, shift=0):
                         directions,
                         actions,
                         np.array(subtask_completes),
-                        subtasks[::-1],
+                        subtasks,
                         *attributes,
                     )
                 )
