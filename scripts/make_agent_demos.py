@@ -167,12 +167,14 @@ def generate_demos(n_episodes, valid, seed, shift=0):
         maze_config_path=args.maze_config_path,
         maze="preset_maze_1",
     )
+
     if args.task:
         env_config.update(**preset_task_definitions[args.task]),
 
     pprint(env_config)
     env = BabyAIEnv(env_config)
     env = env._env
+
     agent = utils.load_agent(
         env, args.model, args.demos, "agent", args.argmax, args.env
     )
@@ -197,6 +199,7 @@ def generate_demos(n_episodes, valid, seed, shift=0):
         else:
             env.seed(seed + len(demos))
             # env.seed(seed + np.random.randint(100))
+
         obs = env.reset()
         agent.on_reset()
 
@@ -218,8 +221,9 @@ def generate_demos(n_episodes, valid, seed, shift=0):
 
         subtask_complete = []
 
-        overall_mission = copy.deepcopy(env.instrs)
+        overall_mission = env.instrs
         overall_mission.reset_verifier(env)
+        status = overall_mission.verify(action=env.Actions.done)
 
         prev_num_subtasks_completed = 0
 
@@ -238,6 +242,7 @@ def generate_demos(n_episodes, valid, seed, shift=0):
                 if args.save_video:
                     imgs.append(env.render())
                 action = agent.act(obs)["action"]
+                # print(action)
                 if isinstance(action, torch.Tensor):
                     action = action.item()
                 new_obs, reward, done, _ = env.step(action, verify=False)
@@ -265,6 +270,7 @@ def generate_demos(n_episodes, valid, seed, shift=0):
                         subtask_complete.append(1)
                     else:
                         subtask_complete.append(0)
+                # print(subtask_complete)
                 subtask_completes.append(subtask_complete)
 
                 if status == "success":
@@ -297,7 +303,6 @@ def generate_demos(n_episodes, valid, seed, shift=0):
                     directions.append(new_obs["direction"])
                     subtask_completes.append(subtask_complete)
                     prev_num_subtasks_completed = num_subtasks_completed
-
                 if done:
                     if args.save_video:
                         imgs.append(env.render())

@@ -630,6 +630,10 @@ class Level_PresetMaze(RoomGridLevel):
         elif init == "same_room":
             i, j = self.room_from_pos(pos_x, pos_y)
             [pos_x, pos_y] = self.place_in_room(i, j, obj)
+        elif init == "bimodal":
+            i, j = self.room_from_pos(pos_x, pos_y)
+            [pos_x, pos_y] = random.choice(self.sampled_pos[f"{color}_{kind}_{i}_{j}"])
+            self.put_obj(obj, pos_x, pos_y)
         elif init == "random":
             [pos_x, pos_y] = self.place_obj(obj)
         else:
@@ -686,32 +690,26 @@ class Level_PresetMaze(RoomGridLevel):
 
     def replace_objs(self, objs, init="fixed"):
         for obj in objs:
-            if obj.type.lower() == "door": 
-                return 
+            if obj.type.lower() == "door":
+                return
             pos_x, pos_y = obj.cur_pos
             self.put_obj(None, pos_x, pos_y)
             dist, pos = self.add_object_pos(obj.type, obj.color, pos_x, pos_y, init)
             # TODO: fix the world objs list
-        return 
+        return
 
-    def add_distractors(self, init="fixed", distractor_objs=[]):
+    def add_objects(self, init="fixed", objs=[]):
         """
         Add specific objects as distractors that can potentially distract/confuse the agent.
         """
-        if not distractor_objs:
-            distractor_objs = [
-                ["ball", "red", 1, 1, 11, 12],
-                ["ball", "blue", 1, 0, 9, 4],
-            ]
-
         dists = []
 
-        for desc in distractor_objs:
+        for desc in objs:
             kind, color, room_i, room_j, pos_x, pos_y = desc
             dist, pos = self.add_object_pos(kind, color, pos_x, pos_y, init)
             dists.append(dist)
 
-        self.world_objs = dists
+        # self.world_objs = dists
         return dists
 
     def add_door(
@@ -793,8 +791,8 @@ class Level_PresetMaze(RoomGridLevel):
             )
 
     def gen_obs(self):
-        #TODO Replace with a parameter or full observability
-        if self.agent_view_size > 8:  #Full Observability
+        # TODO Replace with a parameter or full observability
+        if self.agent_view_size > 8:  # Full Observability
             grid = self.grid
             image = grid.encode()
 
@@ -805,9 +803,11 @@ class Level_PresetMaze(RoomGridLevel):
             # Make it so the agent sees what it's carrying
             # We do this by placing the picked object's id at the agent's color channel
             if self.carrying:
-                image[self.agent_pos[0]][self.agent_pos[1]][1] = self.carrying.encode()[0]
+                image[self.agent_pos[0]][self.agent_pos[1]][1] = self.carrying.encode()[
+                    0
+                ]
 
-        else: #Partial Observability
+        else:  # Partial Observability
             grid, vis_mask = self.gen_obs_grid()
             # Encode the partially observable view into a numpy array
             image = grid.encode(vis_mask)
@@ -829,6 +829,42 @@ class Level_PresetMazeCompositionalTask(Level_PresetMaze):
     Put an object next to another object. Either of these may be in another room.
     """
 
+    def sample_new_object(self, cur_obj_descs, all_objs):
+        new_obj_desc = cur_obj_descs[0]
+        while new_obj_desc in cur_obj_descs:
+            new_obj = self._rand_elem(all_objs)
+            new_obj_desc = ObjDesc(new_obj.type, new_obj.color)
+        return new_obj_desc
+
+    def create_subtask(self, i, subtask, o1_desc, o2_desc, instrs, distractors):
+        if i != 0:
+            # Ensure using different objects from previous subtask
+            if isinstance(instrs[-1], PutNextInstr):
+                prev_obj_descs = [str(instrs[-1].desc_move), str(instrs[-1].desc_fixed)]
+            else:
+                prev_obj_descs = [str(instrs[-1].desc)]
+
+            for desc in prev_obj_descs:
+                if str(desc) == str(o1_desc):
+                    o1_desc = self.sample_new_object(prev_obj_descs, distractors)
+
+        if subtask == "go":
+            instr = GoToInstr(o1_desc)
+        elif subtask == "pickup":
+            instr = GoToInstr(o1_desc)
+        elif subtask == "put":
+            instr = PutNextInstr(o1_desc, o2_desc)
+        elif subtask == "open":
+            if o1_desc.type != "door":
+                obj_type, obj_color = "door", random.choice(COLOR_NAMES)
+                o1_desc = ObjDesc(obj_type, obj_color)
+                self.close_all_doors(color=obj_color)
+            else:
+                self.close_all_doors(color=o1_desc.color)
+
+            instr = OpenInstr(o1_desc)
+        return instr, o1_desc, o2_desc
+
     def gen_mission(
         self,
         agent_init="fixed",
@@ -843,9 +879,56 @@ class Level_PresetMazeCompositionalTask(Level_PresetMaze):
     ):
         self.place_agent_start(agent_init)
         self.connect_all(doors)
-        objs = self.add_distractors(
-            init=distractor_obj_init, distractor_objs=distractor_objs
+
+        if not task_objs:
+            task_objs = []
+
+        task_objs_list = [task_objs[i : i + 2] for i in range(0, len(task_objs), 2)]
+        task_objs_desc = [
+            obj for obj in distractor_objs if [obj[1], obj[0]] in task_objs_list
+        ]
+        distractor_objs_desc = [
+            obj for obj in distractor_objs if [obj[1], obj[0]] not in task_objs_list
+        ]
+
+        if not hasattr(self, "init") or distractor_objs_desc == []:
+            distractor_objs_desc = [
+                ["ball", "red", 1, 1, 11, 12],
+                ["ball", "blue", 1, 0, 9, 4],
+                ["ball", "blue", 1, 0, 9, 3],
+                ["ball", "blue", 1, 0, 9, 2],
+            ]
+
+        distractor_objs = self.add_objects(
+            init=distractor_obj_init, objs=distractor_objs_desc
         )
+
+        if (
+            not hasattr(self, "sampled_pos")
+            and task_objs_desc
+            and task_obj_init == "bimodal"
+        ):
+            self.ctr = 0
+            self.sampled_pos = {}
+
+            task_obj_poss = []
+            for desc in task_objs_desc:
+                kind, color, i, j, x, y = desc
+                room = self.get_room(*self.room_from_pos(x, y))
+                pos_1 = room.rand_pos(self)
+                while pos_1 in task_obj_poss:
+                    pos_1 = room.rand_pos(self)
+                task_obj_poss.append(pos_1)
+
+                pos_2 = room.rand_pos(self)
+                while pos_2 in task_obj_poss:
+                    pos_2 = room.rand_pos(self)
+                task_obj_poss.append(pos_2)
+                self.ctr += 1
+
+                self.sampled_pos[f"{color}_{kind}_{i}_{j}"] = [pos_1, pos_2]
+
+        task_objs_ = self.add_objects(init=task_obj_init, objs=task_objs_desc)
 
         self.open_all_doors()
         self.check_objs_reachable()
@@ -864,43 +947,17 @@ class Level_PresetMazeCompositionalTask(Level_PresetMaze):
                 if subtask == "put":
                     o2_desc = ObjDesc(task_objs[1], task_objs[0])
                     task_objs = task_objs[2:]
+                else:
+                    o2_desc = None
             else:
-                o1, o2 = self._rand_subset(objs, 2)
+                o1, o2 = self._rand_subset(distractor_objs, 2)
                 o1_desc = ObjDesc(o1.type, o1.color)
                 o2_desc = ObjDesc(o2.type, o2.color)
 
-            if subtask == "go":
-                instr = GoToInstr(o1_desc)
-            elif subtask == "pickup":
-                if i != 0 and isinstance(instrs[-1], GoToInstr):  # ensure diff object
-                    o1_desc_prev = instrs[-1].desc
-                    while o1_desc_prev == o1_desc:
-                        o1 = self._rand_elem(objs)
-                instr = PickupInstr(o1_desc)
-            elif subtask == "put":
-                if i == 0:
-                    instr = PutNextInstr(o1_desc, o2_desc)
-                elif isinstance(instrs[-1], PickupInstr) or isinstance(
-                    instrs[-1], GoToInstr
-                ):
-                    # Put a different object
-                    o1_desc_prev = instrs[-1].desc
-                    while o1_desc_prev == o1_desc:
-                        o1 = self._rand_elem(objs)
-                        o1_desc = ObjDesc(o1.type, o1.color)
-                instr = PutNextInstr(o1_desc, o2_desc)
-            elif subtask == "open":
-                if o1_desc.type != "door":
-                    obj_type, obj_color = "door", random.choice(COLOR_NAMES)
-                    o1_desc = ObjDesc(obj_type, obj_color)
-                    self.close_all_doors(color=obj_color)
-                else:
-                    self.close_all_doors(color=o1_desc.color)
+            instr, o1_desc, o2_desc = self.create_subtask(
+                i, subtask, o1_desc, o2_desc, instrs, distractor_objs
+            )
 
-                instr = OpenInstr(o1_desc)
-            else:
-                raise NotImplementedError
-            
             # Randomize task obj positions
             if task_obj_init != "fixed":
                 o1_matches = o1_desc.find_matching_objs(self)
@@ -915,6 +972,7 @@ class Level_PresetMazeCompositionalTask(Level_PresetMaze):
             instrs.append(instr)
 
         self.instrs = CompositionalInstr(instrs, sequential=sequential)
+        self.init = True
 
 
 class Level_PutNextOpen(Level_SynthSeq):
