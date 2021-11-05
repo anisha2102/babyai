@@ -796,16 +796,35 @@ class Level_PresetMaze(RoomGridLevel):
             grid = self.grid
             image = grid.encode()
 
-            image[self.agent_pos[0]][self.agent_pos[1]] = np.array(
-                [OBJECT_TO_IDX["agent"], COLOR_TO_IDX["red"], self.agent_dir]
-            )
+            # Add two more channels, one for dir and one for inventory
+            h, w, c = image.shape
+            new_image = np.zeros((h, w, c + 2))
 
-            # Make it so the agent sees what it's carrying
-            # We do this by placing the picked object's id at the agent's color channel
+            new_image[self.agent_pos[0]][self.agent_pos[0]] = [
+                OBJECT_TO_IDX["agent"],
+                COLOR_TO_IDX["red"],
+                0,
+                self.agent_dir + 1,  # add one so that 0 could denote agent not there
+                0,
+            ]
+
             if self.carrying:
-                image[self.agent_pos[0]][self.agent_pos[1]][1] = self.carrying.encode()[
-                    0
-                ]
+                new_image[self.agent_pos[0]][self.agent_pos[1]][
+                    -1
+                ] = self.carrying.encode()[0]
+
+            image = new_image
+
+            # image[self.agent_pos[0]][self.agent_pos[1]] = np.array(
+            #     [OBJECT_TO_IDX["agent"], COLOR_TO_IDX["red"], self.agent_dir]
+            # )
+
+            # # Make it so the agent sees what it's carrying
+            # # We do this by placing the picked object's id at the agent's color channel
+            # if self.carrying:
+            #     image[self.agent_pos[0]][self.agent_pos[1]][1] = self.carrying.encode()[
+            #         0
+            #     ]
 
         else:  # Partial Observability
             grid, vis_mask = self.gen_obs_grid()
@@ -851,7 +870,7 @@ class Level_PresetMazeCompositionalTask(Level_PresetMaze):
         if subtask == "go":
             instr = GoToInstr(o1_desc)
         elif subtask == "pickup":
-            instr = GoToInstr(o1_desc)
+            instr = PickupInstr(o1_desc)
         elif subtask == "put":
             instr = PutNextInstr(o1_desc, o2_desc)
         elif subtask == "open":
