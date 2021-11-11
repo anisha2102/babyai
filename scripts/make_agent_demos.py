@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 """
 Generate a set of agent demonstrations.
 
@@ -49,14 +48,12 @@ from pprint import pprint
 # Parse arguments
 logger = logging.getLogger(__name__)
 
+
 # Set seed for all randomness sources
 def print_demo_lengths(demos):
     num_frames_per_episode = [len(demo[2]) for demo in demos]
-    logger.info(
-        "Demo length: {:.3f}+-{:.3f}".format(
-            np.mean(num_frames_per_episode), np.std(num_frames_per_episode)
-        )
-    )
+    logger.info("Demo length: {:.3f}+-{:.3f}".format(
+        np.mean(num_frames_per_episode), np.std(num_frames_per_episode)))
 
 
 def save_video(fname, frames, fps=10.0):
@@ -95,7 +92,6 @@ def get_single_one_hot(desc, action):
     action = action.split(" ")[0]
     action_one_hot = np.zeros((1, len(ACTION_TYPES)))
     action_one_hot[:, action_indx_map[action.lower()]] = 1
-
     return color_one_hot, obj_type_one_hot, action_one_hot, obj_desc
 
 
@@ -116,7 +112,8 @@ def get_attributes(env, verifiers):
             attr = get_single_one_hot(verifier.desc, action)
             attr = list(attr)
             for i in range(len(attr) - 2):
-                attr[i] = np.concatenate([attr[i], np.zeros_like(attr[i])], axis=0)
+                attr[i] = np.concatenate(
+                    [attr[i], np.zeros_like(attr[i])], axis=0)
             attributes.append(attr)
 
     colors = [attr[0] for attr in attributes]
@@ -166,7 +163,7 @@ def generate_demos(n_episodes, valid, seed, shift=0):
         sequential=args.sequential if "sequential" in args else None,
         maze_config_path=args.maze_config_path,
         maze="preset_maze_1",
-    )
+        use_additional_channels=args.use_additional_channels)
 
     if args.task:
         env_config.update(**preset_task_definitions[args.task]),
@@ -175,9 +172,8 @@ def generate_demos(n_episodes, valid, seed, shift=0):
     env = BabyAIEnv(env_config)
     env = env._env
 
-    agent = utils.load_agent(
-        env, args.model, args.demos, "agent", args.argmax, args.env
-    )
+    agent = utils.load_agent(env, args.model, args.demos, "agent", args.argmax,
+                             args.env)
     demos_path = utils.get_demos_path(args.demos, args.env, "agent", valid)
 
     demos = []
@@ -228,7 +224,8 @@ def generate_demos(n_episodes, valid, seed, shift=0):
         prev_num_subtasks_completed = 0
 
         if args.debug:
-            full_img = Resize((400, 400))(Image.fromarray(env.render(mode="rgb_array")))
+            full_img = Resize(
+                (400, 400))(Image.fromarray(env.render(mode="rgb_array")))
             plt.imshow(full_img)
             plt.show()
 
@@ -248,12 +245,11 @@ def generate_demos(n_episodes, valid, seed, shift=0):
                 new_obs, reward, done, _ = env.step(action, verify=False)
 
                 if args.debug:
-                    full_img = Resize((400, 400))(
-                        Image.fromarray(env.render(mode="rgb_array"))
-                    )
+                    full_img = Resize(
+                        (400,
+                         400))(Image.fromarray(env.render(mode="rgb_array")))
                     plt.imshow(full_img)
                     plt.show()
-
                 """
                 #Visualize Symbolic observation to human viewable image
                 q1=get_obs_render(new_obs['image'],agent_view_size=22, agent_dir=env.agent_dir)
@@ -280,11 +276,9 @@ def generate_demos(n_episodes, valid, seed, shift=0):
                     done = True
                     reward = 0
 
-                if (
-                    done
-                    and not np.all(np.sum(np.array(subtask_complete), axis=0))
-                    and status == "success"
-                ):
+                if (done and
+                        not np.all(np.sum(np.array(subtask_complete), axis=0))
+                        and status == "success"):
                     import ipdb
 
                     ipdb.set_trace()
@@ -296,7 +290,8 @@ def generate_demos(n_episodes, valid, seed, shift=0):
                 directions.append(obs["direction"])
 
                 # Add a pause for when subtask is done
-                num_subtasks_completed = overall_mission.num_subtasks_completed()
+                num_subtasks_completed = overall_mission.num_subtasks_completed(
+                )
                 if done or num_subtasks_completed != prev_num_subtasks_completed:
                     actions.append(env.Actions.done)
                     images.append(new_obs["image"])
@@ -306,38 +301,37 @@ def generate_demos(n_episodes, valid, seed, shift=0):
                 if done:
                     if args.save_video:
                         imgs.append(env.render())
-                        save_video("check" + str(len(demos)) + ".mp4", np.array(imgs))
+                        save_video("check" + str(len(demos)) + ".mp4",
+                                   np.array(imgs))
 
                 obs = new_obs
 
-            if reward > 0 and (
-                args.filter_steps == 0 or len(images) <= args.filter_steps
-            ):
-                demos.append(
-                    (
-                        mission,
-                        blosc.pack_array(np.array(images)),
-                        directions,
-                        actions,
-                        np.array(subtask_completes),
-                        subtasks,
-                        *attributes,
-                    )
-                )
+            if reward > 0 and (args.filter_steps == 0
+                               or len(images) <= args.filter_steps):
+                demos.append((
+                    mission,
+                    blosc.pack_array(np.array(images)),
+                    directions,
+                    actions,
+                    np.array(subtask_completes),
+                    subtasks,
+                    *attributes,
+                ))
                 just_crashed = False
 
             if reward == 0:
                 if args.on_exception == "crash":
                     raise Exception(
-                        "mission failed, the seed is {}".format(seed + len(demos))
-                    )
+                        "mission failed, the seed is {}".format(seed +
+                                                                len(demos)))
                 just_crashed = True
                 logger.info("mission failed")
         except (Exception, AssertionError):
             if args.on_exception == "crash":
                 raise
             just_crashed = True
-            logger.exception("error while generating demo #{}".format(len(demos)))
+            logger.exception("error while generating demo #{}".format(
+                len(demos)))
             continue
 
         if len(demos) and len(demos) % args.log_interval == 0:
@@ -345,18 +339,13 @@ def generate_demos(n_episodes, valid, seed, shift=0):
             demos_per_second = args.log_interval / (now - checkpoint_time)
             to_go = (n_episodes - len(demos)) / demos_per_second
             logger.info(
-                "demo #{}, {:.3f} demos per second, {:.3f} seconds to go".format(
-                    len(demos) - 1, demos_per_second, to_go
-                )
-            )
+                "demo #{}, {:.3f} demos per second, {:.3f} seconds to go".
+                format(len(demos) - 1, demos_per_second, to_go))
             checkpoint_time = now
 
         # Save demonstrations
-        if (
-            args.save_interval > 0
-            and len(demos) < n_episodes
-            and len(demos) % args.save_interval == 0
-        ):
+        if (args.save_interval > 0 and len(demos) < n_episodes
+                and len(demos) % args.save_interval == 0):
             logger.info("Saving demos...", demos_path)
             utils.save_demos(demos, demos_path)
             logger.info("{} demos saved".format(len(demos)))
@@ -372,11 +361,13 @@ def generate_demos(n_episodes, valid, seed, shift=0):
 
 def generate_demos_cluster():
     demos_per_job = args.episodes // args.jobs
-    demos_path = utils.get_demos_path(
-        demos=args.demos, env=args.env, subtasks=args.subtasks, origin="agent"
-    )
+    demos_path = utils.get_demos_path(demos=args.demos,
+                                      env=args.env,
+                                      subtasks=args.subtasks,
+                                      origin="agent")
     job_demo_names = [
-        os.path.realpath(demos_path + ".shard{}".format(i)) for i in range(args.jobs)
+        os.path.realpath(demos_path + ".shard{}".format(i))
+        for i in range(args.jobs)
     ]
     for demo_name in job_demo_names:
         if os.path.exists(demo_name):
@@ -390,14 +381,11 @@ def generate_demos_cluster():
         cmd_i = list(
             map(
                 str,
-                command
-                + ["--seed", args.seed + i * demos_per_job]
-                + ["--demos", job_demo_names[i]]
-                + ["--episodes", demos_per_job]
-                + ["--jobs", 0]
-                + ["--valid-episodes", 0],
-            )
-        )
+                command + ["--seed", args.seed + i * demos_per_job] +
+                ["--demos", job_demo_names[i]] +
+                ["--episodes", demos_per_job] + ["--jobs", 0] +
+                ["--valid-episodes", 0],
+            ))
         logger.info("LAUNCH COMMAND")
         logger.info(cmd_i)
         p = subprocess.Popen(cmd_i)
@@ -414,11 +402,10 @@ def generate_demos_cluster():
                 try:
                     logger.info("Trying to load shard {}".format(i))
                     job_demos[i] = utils.load_demos(
-                        utils.get_demos_path(job_demo_names[i], args.env, args.subtasks)
-                    )
-                    logger.info(
-                        "{} demos ready in shard {}".format(len(job_demos[i]), i)
-                    )
+                        utils.get_demos_path(job_demo_names[i], args.env,
+                                             args.subtasks))
+                    logger.info("{} demos ready in shard {}".format(
+                        len(job_demos[i]), i))
                 except Exception:
                     logger.exception("Failed to load the shard")
             if job_demos[i] and len(job_demos[i]) == demos_per_job:
@@ -438,18 +425,18 @@ def generate_demos_cluster():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-    parser.add_argument(
-        "--env", required=True, help="name of the environment to be run (REQUIRED)"
-    )
-    parser.add_argument(
-        "--model", default="BOT", help="name of the trained model (REQUIRED)"
-    )
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--env",
+                        required=True,
+                        help="name of the environment to be run (REQUIRED)")
+    parser.add_argument("--model",
+                        default="BOT",
+                        help="name of the trained model (REQUIRED)")
     parser.add_argument(
         "--demos",
         default=None,
-        help="path to save demonstrations (based on --model and --origin by default)",
+        help=
+        "path to save demonstrations (based on --model and --origin by default)",
     )
     parser.add_argument(
         "--episodes",
@@ -463,7 +450,10 @@ if __name__ == "__main__":
         default=512,
         help="number of validation episodes to generate demonstrations for",
     )
-    parser.add_argument("--seed", type=int, default=0, help="start random seed")
+    parser.add_argument("--seed",
+                        type=int,
+                        default=0,
+                        help="start random seed")
     parser.add_argument(
         "--argmax",
         action="store_true",
@@ -502,28 +492,43 @@ if __name__ == "__main__":
         default=None,
         help="The script that launches make_agent_demos.py at a cluster.",
     )
-    parser.add_argument(
-        "--jobs", type=int, default=0, help="Split generation in that many jobs"
-    )
+    parser.add_argument("--jobs",
+                        type=int,
+                        default=0,
+                        help="Split generation in that many jobs")
 
     parser.add_argument("--agent-init", type=str, default="fixed", help="")
     parser.add_argument("--task-obj-init", type=str, default="fixed", help="")
-    parser.add_argument("--distractor-obj-init", type=str, default="fixed", help="")
+    parser.add_argument("--distractor-obj-init",
+                        type=str,
+                        default="fixed",
+                        help="")
     parser.add_argument("--debug", type=int, default=0, help="")
     parser.add_argument("--num-subtasks", type=int, default=3, help="")
-    parser.add_argument("--subtasks", type=str, default=None, nargs="+", help="")
-    parser.add_argument("--task-objs", type=str, default=None, nargs="+", help="")
+    parser.add_argument("--subtasks",
+                        type=str,
+                        default=None,
+                        nargs="+",
+                        help="")
+    parser.add_argument("--task-objs",
+                        type=str,
+                        default=None,
+                        nargs="+",
+                        help="")
     parser.add_argument("--sequential", type=int, default=0, help="")
     parser.add_argument("--maze-config-path", type=str, default="", help="")
     parser.add_argument("--task", type=str, default="", help="")
-    parser.add_argument(
-        "--save_video", action="store_true", default=False, help="Save demo videos"
-    )
+    parser.add_argument("--save_video",
+                        action="store_true",
+                        default=False,
+                        help="Save demo videos")
     parser.add_argument("--screen-sz", type=int, default=8)
+    parser.add_argument("--use-additional-channels", type=int, default=0)
 
     args = parser.parse_args()
 
-    logging.basicConfig(level="INFO", format="%(asctime)s: %(levelname)s: %(message)s")
+    logging.basicConfig(level="INFO",
+                        format="%(asctime)s: %(levelname)s: %(message)s")
     logger.info(args)
     # Training demos
     if args.jobs == 0:
