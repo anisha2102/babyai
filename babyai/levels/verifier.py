@@ -630,9 +630,6 @@ class CompositionalInstr(Instr):
         self.dones = {instr: None for instr in self.instrs}
         self.received_int_rew = {instr: None for instr in self.instrs}
 
-    def num_subtasks_completed(self):
-        return sum([1 for done in self.dones.values() if done and done == "success"])
-
     def verify(self, action):
         num_success = 0
 
@@ -641,6 +638,7 @@ class CompositionalInstr(Instr):
             if self.dones[instr] != "success":
                 status = instr.verify(action)
                 self.dones[instr] = status
+
                 if status == "intermediate" and not self.received_int_rew[instr]:
                     self.received_int_rew[instr] = True
                     return status

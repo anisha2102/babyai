@@ -7,10 +7,19 @@ from core.configs.default_data_configs.babyai import *
 
 
 class Level_PresetMaze(RoomGridLevel):
-    def __init__(self, agent_init, task_obj_init, distractor_obj_init, rand_dir=True):
+    def __init__(
+        self,
+        agent_init,
+        task_obj_init,
+        distractor_obj_init,
+        sequential,
+        rand_dir=True,
+        **kwargs
+    ):
         self.agent_init = agent_init
         self.task_obj_init = task_obj_init
         self.distractor_obj_init = distractor_obj_init
+        self.sequential = sequential
         self.rand_dir = rand_dir
 
         # [type, color, x, y]
@@ -139,8 +148,9 @@ class Level_PresetMaze(RoomGridLevel):
 
         # Add objects
         if hasattr(self, "task_objs"):
-            self.add_objects(self.task_objs, self.task_obj_init)
+            # Place distractor objects first because usually they're fixed
             self.add_objects(self.distractor_objs, self.distractor_obj_init)
+            self.add_objects(self.task_objs, self.task_obj_init)
         else:
             self.add_objects(self.objs, self.task_obj_init)
 
@@ -160,9 +170,11 @@ class Level_PresetMazeCompositionalTask(Level_PresetMaze):
         agent_init,
         task_obj_init,
         distractor_obj_init,
+        sequential,
         subtasks=[],
         num_subtasks=0,
         rand_dir=True,
+        **kwargs
     ):
 
         """
@@ -176,7 +188,7 @@ class Level_PresetMazeCompositionalTask(Level_PresetMaze):
             "open": OpenInstr,
         }
         Level_PresetMaze.__init__(
-            self, agent_init, task_obj_init, distractor_obj_init, rand_dir
+            self, agent_init, task_obj_init, distractor_obj_init, sequential, rand_dir
         )
 
     def create_subtask(self, subtask_str):
@@ -260,13 +272,15 @@ class Level_PresetMazeRandomCompositionalTask(Level_PresetMazeCompositionalTask)
         agent_init,
         task_obj_init,
         distractor_obj_init,
+        sequential,
         num_subtasks=0,
         rand_dir=True,
+        **kwargs
     ):
         self.num_subtasks = num_subtasks
         self.semantic_skills = ["goto", "pickup", "put", "open"]
         Level_PresetMazeCompositionalTask.__init__(
-            self, agent_init, task_obj_init, distractor_obj_init, rand_dir
+            self, agent_init, task_obj_init, distractor_obj_init, sequential, rand_dir
         )
 
     def gen_mission(self):
@@ -277,7 +291,7 @@ class Level_PresetMazeRandomCompositionalTask(Level_PresetMazeCompositionalTask)
             self.semantic_skills, self.num_subtasks, replace=True
         ).tolist()
 
-        print(semantic_actions)
+        # print(semantic_actions)
 
         num_task_objs = 0
         num_doors = 0
@@ -333,8 +347,8 @@ class Level_PresetMazeRandomCompositionalTask(Level_PresetMazeCompositionalTask)
                 task_obj_indx += 1
 
             instrs.append(instr)
-        print(instrs)
-        print(self.closed_doors)
+        # print(instrs)
+        # print(self.closed_doors)
 
         self.instrs = CompositionalInstr(instrs)
         Level_PresetMaze.gen_mission(self)

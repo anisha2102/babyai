@@ -106,6 +106,7 @@ class RoomGridLevel(RoomGrid):
 
                 # Generate the mission
                 self.gen_mission()
+
                 # Validate the instructions
                 self.validate_instrs(self.instrs)
 
