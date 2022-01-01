@@ -104,24 +104,8 @@ class RoomGridLevel(RoomGrid):
             try:
                 super()._gen_grid(width, height)
 
-                keys = [
-                    "agent_init",
-                    "task_obj_init",
-                    "distractor_obj_init",
-                    "num_subtasks",
-                    "subtasks",
-                    "task_objs",
-                    "distractor_objs",
-                    "doors",
-                    "sequential",
-                ]
-
-                mission_kwargs = dict(
-                    {k: getattr(self, k) for k in keys if hasattr(self, k)}
-                )
-
                 # Generate the mission
-                self.gen_mission(**mission_kwargs)
+                self.gen_mission()
                 # Validate the instructions
                 self.validate_instrs(self.instrs)
 
