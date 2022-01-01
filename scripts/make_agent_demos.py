@@ -109,7 +109,6 @@ def render(env):
 def generate_demos(args, valid=False):
     utils.seed(args.seed)
     demos_path = args.demos
-    # print(args.demos)
 
     # Generate environment
     env_kwargs = {
@@ -119,6 +118,7 @@ def generate_demos(args, valid=False):
         "subtasks": args.subtasks,
         "num_subtasks": args.num_subtasks,
         "sequential": args.sequential,
+        "full_observability": args.full_observability,
     }
 
     # Make environment
@@ -241,7 +241,7 @@ def generate_demos(args, valid=False):
                 obs = new_obs
 
             if reward > 0 and (
-                args.filter_steps == 0 or len(images) <= args.filter_steps
+                args.filter_steps == 0 or len(observations) <= args.filter_steps
             ):
                 demos.append(
                     (
@@ -314,7 +314,8 @@ def generate_demos_cluster():
     demos_path = os.path.join(utils.storage_dir(), "demos", demo_name, "demo")
 
     job_demo_names = [
-        os.path.realpath(demos_path + ".shard{}".format(i)) for i in range(args.jobs)
+        os.path.realpath(demos_path + ".shard{}.pkl".format(i))
+        for i in range(args.jobs)
     ]
     for demo_name in job_demo_names:
         if os.path.exists(demo_name):
@@ -452,11 +453,11 @@ if __name__ == "__main__":
     parser.add_argument("--num-subtasks", type=int, default=3, help="")
     parser.add_argument("--subtasks", type=str, default=None, nargs="+", help="")
     parser.add_argument("--sequential", type=int, default=0, help="")
+    parser.add_argument("--full-observability", type=int, default=0, help="")
     parser.add_argument("--task", type=str, default="", help="")
     parser.add_argument(
         "--save_video", action="store_true", default=False, help="Save demo videos"
     )
-    parser.add_argument("--screen-sz", type=int, default=8)
     args = parser.parse_args()
 
     logging.basicConfig(level="INFO", format="%(asctime)s: %(levelname)s: %(message)s")
@@ -472,11 +473,14 @@ if __name__ == "__main__":
                 "subtasks": args.subtasks,
                 "num_subtasks": args.num_subtasks,
                 "sequential": args.sequential,
+                "full_observability": args.full_observability,
             }
             demo_name = create_exp_name(
                 env_kwargs, keys_to_include=list(env_kwargs.keys())
             )
-            demos_path = os.path.join(utils.storage_dir(), "demos", demo_name, "demo")
+            demos_path = os.path.join(
+                utils.storage_dir(), "demos", demo_name, "demo.pkl"
+            )
             args.demos = demos_path
         generate_demos(args)
     else:

@@ -13,6 +13,7 @@ class Level_PresetMaze(RoomGridLevel):
         task_obj_init,
         distractor_obj_init,
         sequential,
+        full_observability=False,
         rand_dir=True,
         **kwargs
     ):
@@ -20,6 +21,7 @@ class Level_PresetMaze(RoomGridLevel):
         self.task_obj_init = task_obj_init
         self.distractor_obj_init = distractor_obj_init
         self.sequential = sequential
+        self.full_observability = full_observability
         self.rand_dir = rand_dir
 
         # [type, color, x, y]
@@ -162,6 +164,63 @@ class Level_PresetMaze(RoomGridLevel):
             self.add_doors(self.doors)
 
         self.check_objs_reachable()
+
+    def gen_obs(self):
+        """
+        Override gen obs for full observability
+        """
+
+        if self.full_observability:
+            grid = self.grid
+            image = grid.encode()
+
+            # Add two more channels, one for dir and one for inventory
+            # if self.use_additional_channels:
+            #     h, w, c = image.shape
+            #     new_image = np.zeros((h, w, c + 2))
+
+            #     new_image[self.agent_pos[0]][self.agent_pos[0]] = [
+            #         OBJECT_TO_IDX["agent"],
+            #         COLOR_TO_IDX["red"],
+            #         0,
+            #         self.agent_dir
+            #         + 1,  # add one so that 0 could denote agent not there
+            #         0,
+            #     ]
+
+            #     if self.carrying:
+            #         new_image[self.agent_pos[0]][self.agent_pos[1]][
+            #             -1
+            #         ] = self.carrying.encode()[0]
+
+            #     image = new_image
+            # else:
+            image[self.agent_pos[0]][self.agent_pos[1]] = np.array(
+                [OBJECT_TO_IDX["agent"], COLOR_TO_IDX["red"], self.agent_dir]
+            )
+
+            # Make it so the agent sees what it's carrying
+            # We do this by placing the picked object's id at the agent's color channel
+            if self.carrying:
+                image[self.agent_pos[0]][self.agent_pos[1]][1] = self.carrying.encode()[
+                    0
+                ]
+
+        # Partial Observability
+        else:
+            return super().gen_obs()
+
+        assert hasattr(
+            self, "mission"
+        ), "environments must define a textual mission string"
+
+        # Observations are dictionaries containing:
+        # - an image (partially observable view of the environment)
+        # - the agent's direction/orientation (acting as a compass)
+        # - a textual mission string (instructions for the agent)
+        obs = {"image": image, "direction": self.agent_dir, "mission": self.mission}
+
+        return obs
 
 
 class Level_PresetMazeCompositionalTask(Level_PresetMaze):
