@@ -45,7 +45,10 @@ def convert_to_hdf5(filenames, args, device):
                 attributes,
             ) = data
 
-            if len(obs) < args.min_seq_len:
+            obs = np.asarray(blosc.unpack_array(obs), dtype=np.uint8)
+            seq_len = len(obs)
+
+            if seq_len < args.min_seq_len:
                 continue
 
             total_trajs += 1
@@ -55,16 +58,28 @@ def convert_to_hdf5(filenames, args, device):
             with h5py.File(hdf5_f, "w") as F:
                 F["traj_per_file"] = 1
                 F["traj0/mission"] = mission
-                F["traj0/images"] = np.asarray(blosc.unpack_array(obs), dtype=np.uint8)
+                F["traj0/images"] = obs
                 F["traj0/actions"] = np.asarray(actions)
                 F["traj0/directions"] = np.asarray(directions)
-                seq_len = len(obs)
                 F["traj0/pad_mask"] = np.ones((seq_len,))
 
                 # if args.render_images:
                 #     F["traj0/images_vis"] = get_obs_render(blosc.unpack_array(obs))
-                F["traj0/semantic_attributes"] = attributes
                 F["traj0/subtask_completes"] = subtask_completes.astype(np.float64)
+
+                num_attributes = attributes.shape[1]
+                semantic_attributes = np.zeros(
+                    (seq_len, 2, num_attributes)
+                )  # 2 because there are 2 objects
+
+                i = 0
+                for t in range(seq_len):
+                    semantic_attributes[t] = attributes[i : i + 2]
+
+                    if actions[t] == "done":
+                        i += 1
+
+                F["traj0/semantic_attributes"] = semantic_attributes
 
         print(f"Total: {total_trajs}")
 

@@ -612,10 +612,7 @@ class CompositionalInstr(Instr):
         self.instrs = instrs
         self.strict = strict
         self.sequential = sequential
-        self.dones = {instr: None for instr in self.instrs}  # is subtask completed
-        self.received_int_rew = {
-            instr: None for instr in self.instrs
-        }  # did agent already receive int reward for completing subtask
+        self.status = [None] * len(self.instrs)
 
     def surface(self, env):
         task = " and ".join([instr.surface(env) for instr in self.instrs])
@@ -627,30 +624,31 @@ class CompositionalInstr(Instr):
         for instr in self.instrs:
             instr.reset_verifier(env)
 
-        self.dones = {instr: None for instr in self.instrs}
-        self.received_int_rew = {instr: None for instr in self.instrs}
+        self.status = [None] * len(self.instrs)
 
     def verify(self, action):
-        num_success = 0
+        num_successes = 0
 
         # Check if each subtask is done
-        for instr in self.instrs:
-            if self.dones[instr] != "success":
-                status = instr.verify(action)
-                self.dones[instr] = status
+        for i, instr in enumerate(self.instrs):
+            current_status = self.status[i]
+            if current_status == "success":
+                continue
 
-                if status == "intermediate" and not self.received_int_rew[instr]:
-                    self.received_int_rew[instr] = True
-                    return status
+            status = instr.verify(action)
+            self.status[i] = status
 
-                # Do tasks in the order they were specified
-                if self.sequential and status != "success":
-                    break
-            else:
-                num_success += 1
+            if status == "intermediate" and (
+                current_status == None or current_status == "continue"
+            ):
+                return status
 
-        # Finished all the subtasks
-        if num_success == len(self.instrs):
+            # Do tasks in the order they were specified
+            if self.sequential and status != "success":
+                break
+
+        num_completed = sum([1 if status == "success" else 0 for status in self.status])
+        if num_completed == len(self.instrs):
             return "success"
 
         return "continue"

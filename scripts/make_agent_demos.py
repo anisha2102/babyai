@@ -194,7 +194,7 @@ def generate_demos(args, valid=False):
                 new_obs, reward, done, _ = env.step(action, verify=False)
 
                 status = overall_mission.verify(action)
-                subtask_status = list(overall_mission.dones.values())
+                subtask_status = overall_mission.status
 
                 # After every env step, log which subtasks have been completed
                 subtask_complete = [
@@ -202,13 +202,13 @@ def generate_demos(args, valid=False):
                 ]
                 subtask_completes.append(subtask_complete)
 
+                if sum(subtask_complete) == len(subtask_complete):
+                    assert status == "success"
+
                 # Set done to be true if task is completed
                 if status == "success":
                     done = True
                     reward = env._reward()
-
-                    # Make sure that all the subtasks are completed
-                    assert sum(subtask_complete) == args.num_subtasks
                 elif status == "failure":
                     done = True
                     reward = 0
